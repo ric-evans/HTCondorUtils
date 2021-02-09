@@ -217,10 +217,10 @@ class Job:  # pylint: disable=R0902
 
         nln = "\n"  # '\n' isn't allowed in f-string expression parts
 
-        def nln_it(string: str, count: int = 1) -> str:
+        def nln_it(string: str) -> str:
             if not string:
                 return ""
-            return string + "\n" * count
+            return string + "\n"
 
         return (
             f"{title} {stars}\n"
@@ -228,8 +228,8 @@ class Job:  # pylint: disable=R0902
             f"{nln_it(err_title)}"
             f"{nln_it(err_msg)}"
             f"{dashes if (err_msg and verbose > 1) else ''}"
-            f"{nln_it(keywords_title, count=2)}"
-            f"{nln.join(keyword_lines_list)}"
+            f"{nln_it(keywords_title)}"
+            f"{nln_it(nln.join(keyword_lines_list))}"
             f"{dashes if (keyword_lines_list and verbose > 1) else ''}"
             f"{nln_it(start)}"
             f"{nln_it(end)}"
