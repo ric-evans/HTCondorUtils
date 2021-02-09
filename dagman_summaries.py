@@ -308,8 +308,14 @@ def _get_jobs(path: str) -> List[Job]:
             for line in file:
                 if "Nodes premarked DONE: " in line:
                     premarked = int(line.strip().split("Nodes premarked DONE: ")[1])
-                    for _ in range(premarked):
-                        jobs.append(Job("", JobExitStatus.SUCCESS_BEFORE_RESCUE, ""))
+                    jobs.extend(
+                        Job(
+                            f"rescue-{rescue}-{i}",
+                            JobExitStatus.SUCCESS_BEFORE_RESCUE,
+                            "",
+                        )
+                        for i in range(premarked)
+                    )
                     logging.debug(f"Found {premarked} rescue jobs in {rescue}")
                     break
 
