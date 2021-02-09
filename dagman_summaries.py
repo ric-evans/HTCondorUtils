@@ -1,6 +1,7 @@
 """Print out failed HTCondor/DAGMan jobs and associated summaries."""
 import argparse
 import concurrent.futures
+import logging
 import os
 import re
 import typing
@@ -292,6 +293,16 @@ def _get_jobs(path: str) -> List[Job]:
 
             prev_line = line
 
+    logging.info(
+        f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.SUCCESS])} success jobs"
+    )
+    logging.info(
+        f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.NON_ZERO])} non-zero jobs"
+    )
+    logging.info(
+        f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.HELD])} held jobs"
+    )
+
     for rescue in [fn for fn in os.listdir(path) if "dag.rescue" in fn]:
         with open(os.path.join(path, rescue)) as file:
             for line in file:
@@ -299,6 +310,12 @@ def _get_jobs(path: str) -> List[Job]:
                     premarked = int(line.strip().split("Nodes premarked DONE: ")[1])
                     for _ in range(premarked):
                         jobs.append(Job("", JobExitStatus.SUCCESS_BEFORE_RESCUE, ""))
+                    logging.debug(f"Found {premarked} rescue jobs in {rescue}")
+                    break
+
+    logging.info(
+        f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.SUCCESS_BEFORE_RESCUE])} success-before-rescue jobs"
+    )
 
     return jobs
 
@@ -329,6 +346,7 @@ def get_all_jobs(
             continue
         job_by_cluster_id[ret_job.cluster_id] = ret_job
 
+    logging.info(f"Found {len(job_by_cluster_id)} total jobs")
     return list(job_by_cluster_id.values())
 
 
