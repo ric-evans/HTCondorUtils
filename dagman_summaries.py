@@ -25,6 +25,7 @@ class JobExitStatus(Enum):
     SUCCESS = auto()
     NON_ZERO = auto()
     HELD = auto()
+    SUCCESS_BEFORE_RESCUE = auto()
 
 
 class Job:  # pylint: disable=R0902
@@ -58,6 +59,10 @@ class Job:  # pylint: disable=R0902
             self.err_filepath = os.path.join(self.dir_path, f"{value}.err")
             self.log_filepath = os.path.join(self.dir_path, f"{value}.log")
             self.start_time, self.end_time = self._get_start_end_times()
+
+    def failed(self) -> bool:
+        """Return whether the job did fail (held or non-zero)."""
+        return self.exit_status in [JobExitStatus.HELD, JobExitStatus.NON_ZERO]
 
     def _search_for_keywords(
         self, keywords: List[str], one_match_per_keyword: bool = False
@@ -123,6 +128,8 @@ class Job:  # pylint: disable=R0902
         """Return a formatted title."""
         if self.exit_status == JobExitStatus.SUCCESS:
             grade = "successful"
+        elif self.exit_status == JobExitStatus.SUCCESS_BEFORE_RESCUE:
+            grade = "successful (before rescue dag)"
         elif self.exit_status == JobExitStatus.HELD:
             grade = "held"
         elif self.exit_status == JobExitStatus.NON_ZERO:
@@ -285,6 +292,14 @@ def _get_jobs(path: str) -> List[Job]:
 
             prev_line = line
 
+    for rescue in [fn for fn in os.listdir(path) if "dag.rescue." in fn]:
+        with open(os.path.join(path, rescue)) as file:
+            for line in file:
+                if "Nodes premarked DONE: " in line:
+                    premarked = int(line.strip().split("Nodes premarked DONE: ")[1])
+                    for _ in range(premarked):
+                        jobs.append(Job("", JobExitStatus.SUCCESS_BEFORE_RESCUE, ""))
+
     return jobs
 
 
@@ -298,7 +313,7 @@ def get_all_jobs(
     ]
     lookup_jobs = list(job_by_cluster_id.values())
     if only_failed_ids:
-        lookup_jobs = [j for j in lookup_jobs if j.exit_status != JobExitStatus.SUCCESS]
+        lookup_jobs = [j for j in lookup_jobs if j.failed()]
 
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
@@ -403,8 +418,8 @@ def get_job_summaries(  # pylint: disable=R0913
 
 def stats(jobs: List[Job]) -> str:
     """Get stats."""
-    successful_jobs = [j for j in jobs if j.exit_status == JobExitStatus.SUCCESS]
-    failed_jobs = [j for j in jobs if j.exit_status != JobExitStatus.SUCCESS]
+    successful_jobs = [j for j in jobs if not j.failed()]
+    failed_jobs = [j for j in jobs if j.failed()]
 
     def percentange(numerator_list: List[Job], denominator_list: List[Job]) -> str:
         return f"{(len(numerator_list)/len(denominator_list))*100:5.2f}%"
@@ -513,7 +528,7 @@ def main() -> None:
     # Summarize
     jobs_to_summarize = jobs
     if args.failed:
-        jobs_to_summarize = [j for j in jobs if j.exit_status != JobExitStatus.SUCCESS]
+        jobs_to_summarize = [j for j in jobs if j.failed()]
     summaries = get_job_summaries(
         jobs_to_summarize,
         args.workers,
