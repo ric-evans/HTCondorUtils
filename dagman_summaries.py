@@ -230,9 +230,9 @@ class Job:  # pylint: disable=R0902
             f"{matched_keywords_str}{new_line if matched_keywords_str else ''}"
             f"{new_line.join(keyword_lines_list)}"
             f"{dashes}{new_line if dashes else ''}"
-            f"{start}"
-            f"{end}"
-            f"{wall_time}"
+            f"{start}{new_line if start else ''}"
+            f"{end}{new_line if end else ''}"
+            f"{wall_time}{new_line if wall_time else ''}"
         )
 
 
