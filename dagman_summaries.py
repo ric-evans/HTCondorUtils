@@ -203,9 +203,9 @@ class Job:  # pylint: disable=R0902
         )
 
         if not keyword_lines_list and keywords:
-            if verbose == 1:
+            if verbose < 2:
                 keywords_title += " None"
-            elif verbose == 2:
+            else:
                 keyword_lines_list = ["None"]
 
         start, end, wall_time = self._get_summary_time_info(verbose)
@@ -528,7 +528,7 @@ def main() -> None:
         print_keyword_matches=not args.no_print_keywords_lines,
     )
     for summary in summaries:
-        print(summary, end="\n" if args.verbose else "")
+        print(summary, end="\n\n" if args.verbose else "\n")
 
     # Print stats
     print("\n")
