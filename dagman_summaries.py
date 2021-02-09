@@ -214,13 +214,8 @@ class Job:  # pylint: disable=R0902
         length = max_line_len(
             [title, err_title, err_msg, keywords_title, start, end, wall_time]
         )
-
-        stars = ""
-        if verbose:
-            stars = "*" * (length - len(title) - 1)
-
-        dashes = "-" * length + "\n"
-
+        stars = "*" * (length - len(title) - 1)
+        dashes_nln = "-" * length + "\n"
         nln = "\n"  # '\n' isn't allowed in f-string expression parts
 
         def nln_it(string: str) -> str:
@@ -229,14 +224,15 @@ class Job:  # pylint: disable=R0902
             return string + "\n"
 
         return (
-            f"{title} {stars}\n"
-            f"{dashes}"
+            f"{title}"
+            f"{nln_it(stars) if verbose else ''}"
+            f"{dashes_nln if verbose else ''}"
             f"{nln_it(err_title)}"
             f"{nln_it(err_msg)}"
-            f"{dashes if (err_msg and verbose > 1) else ''}"
+            f"{dashes_nln if (err_msg and verbose > 1) else ''}"
             f"{nln_it(keywords_title)}"
             f"{nln_it(nln.join(keyword_lines_list))}"
-            f"{dashes if (keyword_lines_list and verbose > 1) else ''}"
+            f"{dashes_nln if (keyword_lines_list and verbose > 1) else ''}"
             f"{nln_it(start)}"
             f"{nln_it(end)}"
             f"{nln_it(wall_time)}"
