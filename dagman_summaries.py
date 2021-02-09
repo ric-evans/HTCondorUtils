@@ -296,23 +296,25 @@ def get_all_jobs(
     files = [
         fn for fn in os.listdir(path) if (".log" in fn) and ("dag.nodes.log" not in fn)
     ]
+    lookup_jobs = list(job_by_cluster_id.values())
+    if only_failed_ids:
+        lookup_jobs = [j for j in lookup_jobs if j.exit_status != JobExitStatus.SUCCESS]
 
     # search every <job_id>.log files for cluster ids, so to set job ids
-    workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
+    file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
-        jobs = list(job_by_cluster_id.values())
-        if only_failed_ids:
-            jobs = [j for j in jobs if j.exit_status != JobExitStatus.SUCCESS]
-        workers.extend(pool.submit(_set_job_id, path, f, jobs) for f in files)
+        file_workers.extend(
+            pool.submit(_set_job_id, path, f, lookup_jobs) for f in files
+        )
 
     # get jobs, now with job_ids
-    for worker in concurrent.futures.as_completed(workers):
+    for worker in concurrent.futures.as_completed(file_workers):
         ret_job = worker.result()
         if not ret_job:
             continue
         job_by_cluster_id[ret_job.cluster_id] = ret_job
 
-    return jobs
+    return list(job_by_cluster_id.values())
 
 
 def _get_job_and_summary(
