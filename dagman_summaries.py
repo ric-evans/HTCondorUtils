@@ -292,7 +292,7 @@ def _get_jobs(path: str) -> List[Job]:
 
             prev_line = line
 
-    for rescue in [fn for fn in os.listdir(path) if "dag.rescue." in fn]:
+    for rescue in [fn for fn in os.listdir(path) if "dag.rescue" in fn]:
         with open(os.path.join(path, rescue)) as file:
             for line in file:
                 if "Nodes premarked DONE: " in line:
