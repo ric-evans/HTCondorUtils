@@ -149,10 +149,10 @@ class Job:  # pylint: disable=R0902
         keywords: Optional[List[str]] = None,
         verbose: int = False,
         add_keyword_matches: bool = True,
-    ) -> Tuple[str, str]:
+    ) -> Tuple[str, List[str]]:
         """Get the keywords that are matched and their lines as strings."""
         matched_keywords_str = ""
-        keyword_lines_str = ""
+        keyword_lines_list = []
         if keywords:
             matched_keywords, keyword_lines = self._search_for_keywords(
                 keywords, one_match_per_keyword=not add_keyword_matches
@@ -168,24 +168,24 @@ class Job:  # pylint: disable=R0902
                 matched_keywords_str += f"""{", ".join(matched_keywords)}"""
                 if add_keyword_matches:
                     for linenum, line in keyword_lines.items():
-                        keyword_lines_str += f"{linenum}: {line}"
+                        keyword_lines_list.append(f"{linenum}: {line}")
             else:
                 matched_keywords_str += "None"
 
-        return matched_keywords_str, keyword_lines_str
+        return matched_keywords_str, keyword_lines_list
 
-    def _get_summary_time_info(self, verbose: int) -> str:
+    def _get_summary_time_info(self, verbose: int) -> Tuple[str, str, str]:
         """Get the time info."""
-        times = ""
-        if verbose > 1:
-            start = f"Start:\t{self.start_time}"
-            end = f"End:\t{self.end_time}"
-            if self.start_time and self.end_time:
-                wall = f"Wall:\t{self.end_time-self.start_time}"
-            else:
-                wall = "Unknown"
-            times = f"\n{start}\n{end}\n{wall}"
-        return times
+        if verbose < 2:
+            return "", "", ""
+
+        start = f"Start:\t{self.start_time}"
+        end = f"End:\t{self.end_time}"
+        if self.start_time and self.end_time:
+            wall = f"Wall:\t{self.end_time-self.start_time}"
+        else:
+            wall = "Unknown"
+        return start, end, wall
 
     def get_summary(
         self,
@@ -198,14 +198,16 @@ class Job:  # pylint: disable=R0902
 
         err_msg = self._get_summary_error_message(verbose)
 
-        matched_keywords_str, keyword_lines_str = self._get_summary_keywords(
+        matched_keywords_str, keyword_lines_list = self._get_summary_keywords(
             keywords, verbose, add_keyword_matches
         )
 
-        times = self._get_summary_time_info(verbose)
+        start, end, wall_time = self._get_summary_time_info(verbose)
 
         # Make Separators
-        length = max_line_len([title, err_msg, matched_keywords_str, times])
+        length = max_line_len(
+            [title, err_msg, matched_keywords_str, start, end, wall_time]
+        )
 
         stars = ""
         if verbose:
@@ -226,9 +228,11 @@ class Job:  # pylint: disable=R0902
             f"{err_msg}\n"
             f"{dots}{new_line if dots else ''}"
             f"{matched_keywords_str}{new_line if matched_keywords_str else ''}"
-            f"{keyword_lines_str}"
+            f"{new_line.join(keyword_lines_list)}"
             f"{dashes}{new_line if dashes else ''}"
-            f"{times}"
+            f"{start}"
+            f"{end}"
+            f"{wall_time}"
         )
 
 
@@ -517,7 +521,7 @@ def main() -> None:
         print_keyword_matches=not args.no_print_keywords_lines,
     )
     for summary in summaries:
-        print(summary, end="\n\n" if args.verbose else "\n")
+        print(summary, end="\n" if args.verbose else "")
 
     # Print stats
     print("\n")
