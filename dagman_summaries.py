@@ -113,7 +113,7 @@ class Job:  # pylint: disable=R0902
 
         return start, end
 
-    def _get_summary_title(self, verbose: bool) -> str:
+    def _get_summary_title(self, verbose: int) -> str:
         """Return a formatted title."""
         if not self.fail_type:
             grade = "successful"
@@ -129,20 +129,25 @@ class Job:  # pylint: disable=R0902
 
         return title
 
-    def _get_summary_error_message(self, verbose: bool) -> str:
+    def _get_summary_error_message(self, verbose: int) -> str:
         """Get the error message."""
-        err_msg = ""
-        if self.error_message:
-            if verbose:
-                err_msg += f"\nlast line in {self.err_filepath.split('/')[-1]}:"
-            err_msg += f"\n> {self.error_message}"
+        if not self.error_message:
+            return ""
 
-        return err_msg
+        if verbose == 0:
+            return f" > {self.error_message}"
+        elif verbose == 1:
+            return f"\n> {self.error_message}"
+        else:
+            return (
+                f"\nlast line in {self.err_filepath.split('/')[-1]}:"
+                f"\n> {self.error_message}"
+            )
 
     def _get_summary_keywords(
         self,
         keywords: Optional[List[str]] = None,
-        verbose: bool = False,
+        verbose: int = False,
         add_keyword_matches: bool = True,
     ) -> Tuple[str, str]:
         """Get the keywords that are matched and their lines as strings."""
@@ -168,7 +173,7 @@ class Job:  # pylint: disable=R0902
 
         return matched_keywords_str, keyword_lines_str
 
-    def _get_summary_time_info(self, verbose: bool) -> str:
+    def _get_summary_time_info(self, verbose: int) -> str:
         """Get the time info."""
         times = ""
         if verbose:
@@ -184,7 +189,7 @@ class Job:  # pylint: disable=R0902
     def get_summary(
         self,
         keywords: Optional[List[str]] = None,
-        verbose: bool = False,
+        verbose: int = 0,
         add_keyword_matches: bool = True,
     ) -> str:
         """Return formatted summary string."""
@@ -198,12 +203,17 @@ class Job:  # pylint: disable=R0902
 
         times = self._get_summary_time_info(verbose)
 
-        # make separators
+        # Make Separators
         length = max_line_len([title, err_msg, matched_keywords_str, times])
-        stars = f"\n{'*'*length}"
+
+        stars = ""
+        if verbose:
+            stars = f"\n{'*'*length}"
+
         dots = ""
         if verbose and err_msg:
             dots = "\n..."
+
         dashes = ""
         if verbose and matched_keywords_str:
             dashes = f"\n{'-'*length}"
@@ -288,7 +298,7 @@ def get_all_jobs(
 
 
 def _get_job_and_summary(
-    job: Job, keywords: List[str], verbose: bool, add_keyword_matches: bool
+    job: Job, keywords: List[str], verbose: int, add_keyword_matches: bool
 ) -> Tuple[Job, str]:
     summary = job.get_summary(
         keywords=keywords, verbose=verbose, add_keyword_matches=add_keyword_matches
@@ -346,7 +356,7 @@ def get_job_summaries(  # pylint: disable=R0913
     keywords: Optional[List[str]] = None,
     sort_by_value: str = "",
     reverse: bool = False,
-    verbose: bool = False,
+    verbose: int = 0,
     print_keyword_matches: bool = True,
 ) -> List[str]:
     """Get list of each job's summary."""
@@ -371,7 +381,7 @@ def get_job_summaries(  # pylint: disable=R0913
     return [js[1] for js in job_summaries]
 
 
-def stats(failed_jobs: List[Job], successful_jobs: List[Job], verbose: bool) -> str:
+def stats(failed_jobs: List[Job], successful_jobs: List[Job]) -> str:
     """Get stats."""
     total = len(failed_jobs) + len(successful_jobs)
 
@@ -451,8 +461,8 @@ def main() -> None:
     parser.add_argument(
         "-v",
         dest="verbose",
-        default=False,
-        action="store_true",
+        default=0,
+        action="count",
         help="display more information",
     )
     parser.add_argument(
@@ -496,11 +506,11 @@ def main() -> None:
         print_keyword_matches=not args.no_print_keywords_lines,
     )
     for summary in summaries:
-        print(f"{summary}\n")
+        print(summary, end="\n\n" if args.verbose else "\n")
 
     # Print stats
     print("\n")
-    print(stats(failed_jobs, successful_jobs, args.verbose))
+    print(stats(failed_jobs, successful_jobs))
 
 
 if __name__ == "__main__":
