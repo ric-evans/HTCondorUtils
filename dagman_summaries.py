@@ -194,7 +194,7 @@ class Job:  # pylint: disable=R0902
         add_keyword_matches: bool = True,
     ) -> str:
         """Return formatted summary string."""
-        title = self._get_summary_title(verbose)
+        title = self._get_summary_title(verbose) + " "
 
         err_msg = self._get_summary_error_message(verbose)
 
@@ -207,9 +207,9 @@ class Job:  # pylint: disable=R0902
         # Make Separators
         length = max_line_len([title, err_msg, matched_keywords_str, times])
 
-        stars = ""
+        stars = "\n"
         if verbose:
-            stars = f"{'*'*length}"
+            stars = "*" * (length - len(title)) + "\n"
 
         dots = ""
         if verbose > 1 and err_msg:
