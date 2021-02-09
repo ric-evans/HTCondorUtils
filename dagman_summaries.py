@@ -374,29 +374,47 @@ def get_job_summaries(  # pylint: disable=R0913
 def stats(failed_jobs: List[Job], successful_jobs: List[Job], verbose: bool) -> str:
     """Get stats."""
     total = len(failed_jobs) + len(successful_jobs)
-    success = f"{len(successful_jobs)}/{total} jobs successful\n"
+
+    def percentange(numerator: int, denominator: int) -> str:
+        return f"{(numerator/denominator)*100:5.2f}%"
+
+    def div(numerator: int, denominator: int) -> str:
+        prec = len(str(denominator))
+        return f"{numerator:{prec}.0f}/{denominator}"
+
+    # Successful Jobs
+    success = (
+        f"Successful Jobs: {div(len(successful_jobs),total)} "
+        f"{percentange(len(successful_jobs),total)}\n"
+    )
 
     held = ""
     non_zero = ""
     dashes = ""
     total_failed = ""
+    # Failed Jobs
     if total:
-
-        def percentange(numerator: int, denominator: int) -> str:
-            return f"{(numerator/denominator)*100:5.2f}%"
-
-        def div(numerator: int, denominator: int) -> str:
-            prec = len(str(denominator))
-            return f"{numerator:{prec}.0f}/{denominator}"
-
+        # Held Jobs
         held_count = len([j for j in failed_jobs if j.fail_type == Job.HELD])
-        held = f"Held Jobs:    {div(held_count,total)} {percentange(held_count,total) if verbose else ''}\n"
+        held = (
+            f"Held Jobs:       {div(held_count,total)} "
+            f"{percentange(held_count,total)}\n"
+        )
 
+        # Non-Zero Jobs
         non_zero_count = len([j for j in failed_jobs if j.fail_type == Job.NON_ZERO])
-        non_zero = f"Non-Zero Jobs:{div(non_zero_count,total)} {percentange(non_zero_count,total) if verbose else ''}\n"
+        non_zero = (
+            f"Non-Zero Jobs:   {div(non_zero_count,total)} "
+            f"{percentange(non_zero_count,total)}\n"
+        )
 
         dashes = "---\n"
-        total_failed = f"Total Failed: {div(len(failed_jobs),total)} {percentange(len(failed_jobs),total) if verbose else ''}\n"
+
+        # Total Failed
+        total_failed = (
+            f"Total Failed:    {div(len(failed_jobs),total)} "
+            f"{percentange(len(failed_jobs),total)}\n"
+        )
 
     equals = f"{'=' * max_line_len([success,held,non_zero,total_failed])}\n"
 
