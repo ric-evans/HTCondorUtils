@@ -151,28 +151,28 @@ class Job:  # pylint: disable=R0902
         add_keyword_matches: bool = True,
     ) -> Tuple[str, List[str]]:
         """Get the keywords that are matched and their lines as strings."""
-        matched_keywords_str = ""
+        keywords_title = ""
         keyword_lines_list = []
         if keywords:
             matched_keywords, keyword_lines = self._search_for_keywords(
                 keywords, one_match_per_keyword=not add_keyword_matches
             )
             if verbose > 1:
-                matched_keywords_str += (
+                keywords_title = (
                     f"keywords found in {self.err_filepath.split('/')[-1]}:> "
                 )
             else:
-                matched_keywords_str += "found: "
+                keywords_title = "found: "
 
             if matched_keywords:
-                matched_keywords_str += f"""{", ".join(matched_keywords)}"""
+                keyword_lines_list.append(", ".join(matched_keywords))
                 if add_keyword_matches:
                     for linenum, line in keyword_lines.items():
                         keyword_lines_list.append(f"{linenum}: {line}")
             else:
-                matched_keywords_str += "None"
+                keyword_lines_list = ["None"]
 
-        return matched_keywords_str, keyword_lines_list
+        return keywords_title, keyword_lines_list
 
     def _get_summary_time_info(self, verbose: int) -> Tuple[str, str, str]:
         """Get the time info."""
@@ -198,7 +198,7 @@ class Job:  # pylint: disable=R0902
 
         err_title, err_msg = self._get_summary_error_message(verbose)
 
-        matched_keywords_str, keyword_lines_list = self._get_summary_keywords(
+        keywords_title, keyword_lines_list = self._get_summary_keywords(
             keywords, verbose, add_keyword_matches
         )
 
@@ -206,7 +206,7 @@ class Job:  # pylint: disable=R0902
 
         # Make Separators
         length = max_line_len(
-            [title, err_title, err_msg, matched_keywords_str, start, end, wall_time]
+            [title, err_title, err_msg, keywords_title, start, end, wall_time]
         )
 
         stars = ""
@@ -224,12 +224,13 @@ class Job:  # pylint: disable=R0902
 
         return (
             f"{title} {stars}\n"
+            f"{dashes}"
             f"{nln_it(err_title)}"
             f"{nln_it(err_msg)}"
             f"{dashes if (err_msg and verbose > 1) else ''}"
-            f"{nln_it(matched_keywords_str, count=2)}"
+            f"{nln_it(keywords_title, count=2)}"
             f"{nln.join(keyword_lines_list)}"
-            f"{dashes if (matched_keywords_str and verbose > 1) else ''}"
+            f"{dashes if (keyword_lines_list and verbose > 1) else ''}"
             f"{nln_it(start)}"
             f"{nln_it(end)}"
             f"{nln_it(wall_time)}"
