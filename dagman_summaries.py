@@ -137,11 +137,11 @@ class Job:  # pylint: disable=R0902
         if verbose == 0:
             return f" > {self.error_message}"
         elif verbose == 1:
-            return f"\n> {self.error_message}"
+            return f"> {self.error_message}"
         else:
             return (
-                f"\nlast line in {self.err_filepath.split('/')[-1]}:"
-                f"\n> {self.error_message}"
+                f"last line in {self.err_filepath.split('/')[-1]}:"
+                f"> {self.error_message}"
             )
 
     def _get_summary_keywords(
@@ -157,17 +157,18 @@ class Job:  # pylint: disable=R0902
             matched_keywords, keyword_lines = self._search_for_keywords(
                 keywords, one_match_per_keyword=not add_keyword_matches
             )
-            if verbose:
+            if verbose > 1:
                 matched_keywords_str += (
-                    f"\nkeywords found in {self.err_filepath.split('/')[-1]}:\n> "
+                    f"keywords found in {self.err_filepath.split('/')[-1]}:> "
                 )
             else:
-                matched_keywords_str += "\nfound: "
+                matched_keywords_str += "found: "
+
             if matched_keywords:
                 matched_keywords_str += f"""{", ".join(matched_keywords)}"""
                 if add_keyword_matches:
                     for linenum, line in keyword_lines.items():
-                        keyword_lines_str += f"\n{linenum}: {line}"
+                        keyword_lines_str += f"{linenum}: {line}"
             else:
                 matched_keywords_str += "None"
 
@@ -208,15 +209,17 @@ class Job:  # pylint: disable=R0902
 
         stars = ""
         if verbose:
-            stars = f"\n{'*'*length}"
+            stars = f"{'*'*length}"
 
         dots = ""
         if verbose > 1 and err_msg:
-            dots = "\n..."
+            dots = "..."
 
         dashes = ""
-        if verbose > 1 and matched_keywords_str:
-            dashes = f"\n{'-'*length}"
+        if matched_keywords_str:
+            matched_keywords_str += ""
+            if verbose > 1:
+                dashes = f"{'-'*length}"
 
         return f"{title}{stars}{err_msg}{dots}{matched_keywords_str}{keyword_lines_str}{dashes}{times}"
 
