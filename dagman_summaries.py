@@ -312,7 +312,7 @@ def _get_jobs(path: str) -> List[Job]:
                         Job(
                             f"rescue-{rescue}-{i}",
                             JobExitStatus.SUCCESS_BEFORE_RESCUE,
-                            "",
+                            f"rescue-{rescue}-{i}",
                         )
                         for i in range(premarked)
                     )
