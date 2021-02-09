@@ -207,9 +207,9 @@ class Job:  # pylint: disable=R0902
         # Make Separators
         length = max_line_len([title, err_msg, matched_keywords_str, times])
 
-        stars = "\n"
+        stars = ""
         if verbose:
-            stars = "*" * (length - len(title) + 1)
+            stars = "*" * (length - len(title) - 1)
 
         dots = ""
         if verbose > 1 and err_msg:
@@ -217,17 +217,17 @@ class Job:  # pylint: disable=R0902
 
         dashes = ""
         if matched_keywords_str:
-            matched_keywords_str += ""
             if verbose > 1:
                 dashes = "-" * length
 
+        new_line = "\n"
         return (
             f"{title} {stars}\n"
             f"{err_msg}\n"
-            f"{dots}"
-            f"{matched_keywords_str}"
+            f"{dots}{new_line if dots else ''}"
+            f"{matched_keywords_str}{new_line if matched_keywords_str else ''}"
             f"{keyword_lines_str}"
-            f"{dashes}"
+            f"{dashes}{new_line if dashes else ''}"
             f"{times}"
         )
 
