@@ -176,7 +176,7 @@ class Job:  # pylint: disable=R0902
     def _get_summary_time_info(self, verbose: int) -> str:
         """Get the time info."""
         times = ""
-        if verbose:
+        if verbose > 1:
             start = f"Start:\t{self.start_time}"
             end = f"End:\t{self.end_time}"
             if self.start_time and self.end_time:
@@ -211,11 +211,11 @@ class Job:  # pylint: disable=R0902
             stars = f"\n{'*'*length}"
 
         dots = ""
-        if verbose and err_msg:
+        if verbose > 1 and err_msg:
             dots = "\n..."
 
         dashes = ""
-        if verbose and matched_keywords_str:
+        if verbose > 1 and matched_keywords_str:
             dashes = f"\n{'-'*length}"
 
         return f"{title}{stars}{err_msg}{dots}{matched_keywords_str}{keyword_lines_str}{dashes}{times}"
