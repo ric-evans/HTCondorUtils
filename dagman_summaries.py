@@ -129,19 +129,19 @@ class Job:  # pylint: disable=R0902
 
         return title
 
-    def _get_summary_error_message(self, verbose: int) -> str:
+    def _get_summary_error_message(self, verbose: int) -> Tuple[str, str]:
         """Get the error message."""
         if not self.error_message:
-            return ""
+            return "", ""
 
         if verbose == 0:
-            return f" > {self.error_message}"
+            return "", f" > {self.error_message}"
         elif verbose == 1:
-            return f"> {self.error_message}"
+            return "", f"> {self.error_message}"
         else:
             return (
-                f"last line in {self.err_filepath.split('/')[-1]}:"
-                f"> {self.error_message}"
+                f"last line in {self.err_filepath.split('/')[-1]}:",
+                f"> {self.error_message}",
             )
 
     def _get_summary_keywords(
@@ -196,7 +196,7 @@ class Job:  # pylint: disable=R0902
         """Return formatted summary string."""
         title = self._get_summary_title(verbose)
 
-        err_msg = self._get_summary_error_message(verbose)
+        err_title, err_msg = self._get_summary_error_message(verbose)
 
         matched_keywords_str, keyword_lines_list = self._get_summary_keywords(
             keywords, verbose, add_keyword_matches
@@ -206,7 +206,7 @@ class Job:  # pylint: disable=R0902
 
         # Make Separators
         length = max_line_len(
-            [title, err_msg, matched_keywords_str, start, end, wall_time]
+            [title, err_title, err_msg, matched_keywords_str, start, end, wall_time]
         )
 
         stars = ""
@@ -215,17 +215,24 @@ class Job:  # pylint: disable=R0902
 
         dashes = "-" * length + "\n"
 
-        new_line = "\n"
+        nln = "\n"  # '\n' isn't allowed in f-string expression parts
+
+        def nln_it(string: str, count: int = 1) -> str:
+            if not string:
+                return ""
+            return string + "\n" * count
+
         return (
             f"{title} {stars}\n"
-            f"{err_msg}\n"
+            f"{nln_it(err_title)}"
+            f"{nln_it(err_msg)}"
             f"{dashes if (err_msg and verbose > 1) else ''}"
-            f"{matched_keywords_str}{new_line if matched_keywords_str else ''}"
-            f"{new_line.join(keyword_lines_list)}"
+            f"{nln_it(matched_keywords_str, count=2)}"
+            f"{nln.join(keyword_lines_list)}"
             f"{dashes if (matched_keywords_str and verbose > 1) else ''}"
-            f"{start}{new_line if start else ''}"
-            f"{end}{new_line if end else ''}"
-            f"{wall_time}{new_line if wall_time else ''}"
+            f"{nln_it(start)}"
+            f"{nln_it(end)}"
+            f"{nln_it(wall_time)}"
         )
 
 
