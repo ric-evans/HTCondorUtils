@@ -213,23 +213,16 @@ class Job:  # pylint: disable=R0902
         if verbose:
             stars = "*" * (length - len(title) - 1)
 
-        dots = ""
-        if verbose > 1 and err_msg:
-            dots = "..."
-
-        dashes = ""
-        if matched_keywords_str:
-            if verbose > 1:
-                dashes = "-" * length
+        dashes = "-" * length + "\n"
 
         new_line = "\n"
         return (
             f"{title} {stars}\n"
             f"{err_msg}\n"
-            f"{dots}{new_line if dots else ''}"
+            f"{dashes if (err_msg and verbose > 1) else ''}"
             f"{matched_keywords_str}{new_line if matched_keywords_str else ''}"
             f"{new_line.join(keyword_lines_list)}"
-            f"{dashes}{new_line if dashes else ''}"
+            f"{dashes if (matched_keywords_str and verbose > 1) else ''}"
             f"{start}{new_line if start else ''}"
             f"{end}{new_line if end else ''}"
             f"{wall_time}{new_line if wall_time else ''}"
