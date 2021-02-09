@@ -223,8 +223,8 @@ class Job:  # pylint: disable=R0902
                 return ""
             return string + "\n"
 
-        return (
-            f"{title}"
+        summary = (
+            f"{title} "
             f"{nln_it(stars) if verbose else ''}"
             f"{dashes_nln if verbose else ''}"
             f"{nln_it(err_title)}"
@@ -237,6 +237,10 @@ class Job:  # pylint: disable=R0902
             f"{nln_it(end)}"
             f"{nln_it(wall_time)}"
         )
+
+        if verbose > 1:
+            return nln_it(summary)
+        return summary
 
 
 def _set_job_id(path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
@@ -524,7 +528,7 @@ def main() -> None:
         print_keyword_matches=not args.no_print_keywords_lines,
     )
     for summary in summaries:
-        print(summary, end="\n\n" if args.verbose else "\n")
+        print(summary, end="\n" if args.verbose else "")
 
     # Print stats
     print("\n")
