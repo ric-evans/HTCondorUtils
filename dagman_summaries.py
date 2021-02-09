@@ -539,6 +539,7 @@ def main() -> None:
         help="don't print lines containing keywords (useful if there are many matches)",
     )
     args = parser.parse_args()
+    logging.basicConfig(level="DEBUG")
 
     # Get jobs
     jobs = get_all_jobs(args.path, args.workers, only_failed_ids=args.failed)
