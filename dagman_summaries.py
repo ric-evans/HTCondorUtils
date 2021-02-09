@@ -194,7 +194,7 @@ class Job:  # pylint: disable=R0902
         add_keyword_matches: bool = True,
     ) -> str:
         """Return formatted summary string."""
-        title = self._get_summary_title(verbose) + " "
+        title = self._get_summary_title(verbose)
 
         err_msg = self._get_summary_error_message(verbose)
 
@@ -209,7 +209,7 @@ class Job:  # pylint: disable=R0902
 
         stars = "\n"
         if verbose:
-            stars = "*" * (length - len(title)) + "\n"
+            stars = "*" * (length - len(title) + 1)
 
         dots = ""
         if verbose > 1 and err_msg:
@@ -219,9 +219,17 @@ class Job:  # pylint: disable=R0902
         if matched_keywords_str:
             matched_keywords_str += ""
             if verbose > 1:
-                dashes = f"{'-'*length}"
+                dashes = "-" * length
 
-        return f"{title}{stars}{err_msg}{dots}{matched_keywords_str}{keyword_lines_str}{dashes}{times}"
+        return (
+            f"{title} {stars}\n"
+            f"{err_msg}\n"
+            f"{dots}"
+            f"{matched_keywords_str}"
+            f"{keyword_lines_str}"
+            f"{dashes}"
+            f"{times}"
+        )
 
 
 def _set_job_id(path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
