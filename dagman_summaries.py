@@ -159,10 +159,10 @@ class Job:  # pylint: disable=R0902
             )
             if verbose > 1:
                 keywords_title = (
-                    f"keywords found in {self.err_filepath.split('/')[-1]}:> "
+                    f"keywords found in {self.err_filepath.split('/')[-1]}:"
                 )
             else:
-                keywords_title = "found: "
+                keywords_title = "found:"
 
             if matched_keywords:
                 keyword_lines_list.append(", ".join(matched_keywords))
@@ -170,7 +170,7 @@ class Job:  # pylint: disable=R0902
                     for linenum, line in keyword_lines.items():
                         keyword_lines_list.append(f"{linenum}: {line}")
             else:
-                keyword_lines_list = ["None"]
+                keyword_lines_list = []
 
         return keywords_title, keyword_lines_list
 
@@ -201,6 +201,12 @@ class Job:  # pylint: disable=R0902
         keywords_title, keyword_lines_list = self._get_summary_keywords(
             keywords, verbose, add_keyword_matches
         )
+
+        if not keyword_lines_list and keywords:
+            if verbose == 1:
+                keywords_title += " None"
+            elif verbose == 2:
+                keyword_lines_list = ["None"]
 
         start, end, wall_time = self._get_summary_time_info(verbose)
 
