@@ -5,6 +5,7 @@ import os
 import re
 import typing
 from datetime import datetime
+from enum import auto, Enum
 from typing import Dict, List, Optional, Set, Tuple
 
 from dateutil.parser import parse as parse_dt
@@ -18,20 +19,25 @@ def max_line_len(lines: List[str]) -> int:
     return len(max(good, key=len))
 
 
+class JobExitStatus(Enum):
+    """Exit status of Condor job."""
+
+    SUCCESS = auto()
+    NON_ZERO = auto()
+    HELD = auto()
+
+
 class Job:  # pylint: disable=R0902
     """Encapsulates HTCondor/DAGMan job info."""
 
-    HELD = "held"
-    NON_ZERO = "non-zero"
-
     def __init__(
-        self, dir_path: str, cluster_id: str = "", fail_type: str = "",
+        self, dir_path: str, exit_status: JobExitStatus, cluster_id: str,
     ):
         self.__error_message = ""
         self.cluster_id = cluster_id
         self.dir_path = dir_path
         self.err_filepath = ""  # type: str
-        self.fail_type = fail_type
+        self.exit_status = exit_status
         self.job_id = ""  # type: str
         self.log_filepath = ""  # type: str
 
@@ -79,12 +85,12 @@ class Job:  # pylint: disable=R0902
         """
         if not self.__error_message:
             # non-zero jobs -- search for keywords, and grab last line from *.err file
-            if self.fail_type == Job.NON_ZERO:
+            if self.exit_status == JobExitStatus.NON_ZERO:
                 with open(self.err_filepath, "r") as file:
                     self.__error_message = list(file)[-1].strip()
 
             # held jobs -- grab 'Error' line from *.log file
-            elif self.fail_type == Job.HELD:
+            elif self.exit_status == JobExitStatus.HELD:
                 with open(self.log_filepath, "r") as file:
                     for line in file:
                         if "Error" in line:
@@ -115,12 +121,14 @@ class Job:  # pylint: disable=R0902
 
     def _get_summary_title(self, verbose: int) -> str:
         """Return a formatted title."""
-        if not self.fail_type:
+        if self.exit_status == JobExitStatus.SUCCESS:
             grade = "successful"
-        elif self.fail_type == Job.HELD:
+        elif self.exit_status == JobExitStatus.HELD:
             grade = "held"
-        elif self.fail_type == Job.NON_ZERO:
+        elif self.exit_status == JobExitStatus.NON_ZERO:
             grade = "returned non-zero value"
+        else:
+            raise Exception(f"Unaccounted for exit status: {self.exit_status}")
 
         if verbose:
             title = f"job{self.job_id} ({self.cluster_id}) {grade}"
@@ -195,13 +203,11 @@ class Job:  # pylint: disable=R0902
     ) -> str:
         """Return formatted summary string."""
         title = self._get_summary_title(verbose)
-
         err_title, err_msg = self._get_summary_error_message(verbose)
 
         keywords_title, keyword_lines_list = self._get_summary_keywords(
             keywords, verbose, add_keyword_matches
         )
-
         if not keyword_lines_list and keywords:
             if verbose < 2:
                 keywords_title += " None"
@@ -254,69 +260,59 @@ def _set_job_id(path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
     return None
 
 
-def _get_and_split_jobs(path: str) -> Tuple[List[Job], List[Job]]:
+def _get_jobs(path: str) -> List[Job]:
     """Get the failed and successful cluster jobs."""
 
     def get_id(line: str) -> str:
         id_ = re.findall(r"\(.+\)", line.strip())[0][1:-1]
         return typing.cast(str, id_)
 
-    failed_jobs = []
-    successful_jobs = []
+    jobs = []
     prev_line = ""
     with open(os.path.join(path, "dag.nodes.log"), "r") as file:
         for line in file:
+            # Job returned on its own accord
             if "(return value" in line:
+                # Success
                 if "(return value 0)" in line:
-                    successful_jobs.append(Job(path, cluster_id=get_id(prev_line)))
+                    jobs.append(Job(path, JobExitStatus.SUCCESS, get_id(prev_line)))
+                # Fail
                 else:
-                    failed_jobs.append(
-                        Job(path, cluster_id=get_id(prev_line), fail_type=Job.NON_ZERO)
-                    )
-
+                    jobs.append(Job(path, JobExitStatus.NON_ZERO, get_id(prev_line)))
+            # Job was held
             elif "Job was held" in line:
-                failed_jobs.append(
-                    Job(path, cluster_id=get_id(line), fail_type=Job.HELD)
-                )
+                jobs.append(Job(path, JobExitStatus.HELD, get_id(line)))
 
             prev_line = line
 
-    return failed_jobs, successful_jobs
+    return jobs
 
 
 def get_all_jobs(
     path: str, max_workers: int, only_failed_ids: bool = True
-) -> Tuple[List[Job], List[Job]]:
+) -> List[Job]:
     """Return list of successful and failed jobs."""
-    failed_jobs, successful_jobs = _get_and_split_jobs(path)
+    job_by_cluster_id = {j.cluster_id: j for j in _get_jobs(path)}
+    files = [
+        fn for fn in os.listdir(path) if (".log" in fn) and ("dag.nodes.log" not in fn)
+    ]
 
-    # search log files for cluster ids
-    workers = []
+    # search every <job_id>.log files for cluster ids, so to set job ids
+    workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
+        jobs = list(job_by_cluster_id.values())
         if only_failed_ids:
-            jobs = failed_jobs
-        else:
-            jobs = failed_jobs + successful_jobs
-        for filename in [
-            fn
-            for fn in os.listdir(path)
-            if (".log" in fn) and ("dag.nodes.log" not in fn)
-        ]:
-            workers.append(pool.submit(_set_job_id, path, filename, jobs))
+            jobs = [j for j in jobs if j.exit_status != JobExitStatus.SUCCESS]
+        workers.extend(pool.submit(_set_job_id, path, f, jobs) for f in files)
 
     # get jobs, now with job_ids
-    job_sum = []
     for worker in concurrent.futures.as_completed(workers):
-        job = worker.result()
-        if job:
-            job_sum.append(job)
+        ret_job = worker.result()
+        if not ret_job:
+            continue
+        job_by_cluster_id[ret_job.cluster_id] = ret_job
 
-    if not only_failed_ids:
-        successful_jobs = [j for j in job_sum if not j.fail_type]
-    failed_jobs = [j for j in job_sum if j.fail_type]
-
-    # return
-    return successful_jobs, failed_jobs
+    return jobs
 
 
 def _get_job_and_summary(
@@ -362,7 +358,7 @@ def _arrange_job_summaries(
         )
     elif sort_by_value == "success":
         job_summaries = sort_func(
-            job_summaries, key=lambda x: x[0].fail_type, reverse=reverse
+            job_summaries, key=lambda x: x[0].exit_status, reverse=reverse
         )
     elif sort_by_value == "walltime":
         job_summaries = sort_func(
@@ -383,14 +379,14 @@ def get_job_summaries(  # pylint: disable=R0913
 ) -> List[str]:
     """Get list of each job's summary."""
     # make messages
-    workers = []
+    workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
-        for job in jobs:
-            workers.append(
-                pool.submit(
-                    _get_job_and_summary, job, keywords, verbose, print_keyword_matches
-                )
+        workers.extend(
+            pool.submit(
+                _get_job_and_summary, j, keywords, verbose, print_keyword_matches
             )
+            for j in jobs
+        )
 
     # get messages
     job_summaries = []  # type: List[Tuple[Job, str]]
@@ -403,21 +399,22 @@ def get_job_summaries(  # pylint: disable=R0913
     return [js[1] for js in job_summaries]
 
 
-def stats(failed_jobs: List[Job], successful_jobs: List[Job]) -> str:
+def stats(jobs: List[Job]) -> str:
     """Get stats."""
-    total = len(failed_jobs) + len(successful_jobs)
+    successful_jobs = [j for j in jobs if j.exit_status == JobExitStatus.SUCCESS]
+    failed_jobs = [j for j in jobs if j.exit_status != JobExitStatus.SUCCESS]
 
-    def percentange(numerator: int, denominator: int) -> str:
-        return f"{(numerator/denominator)*100:5.2f}%"
+    def percentange(numerator_list: List[Job], denominator_list: List[Job]) -> str:
+        return f"{(len(numerator_list)/len(denominator_list))*100:5.2f}%"
 
-    def div(numerator: int, denominator: int) -> str:
-        prec = len(str(denominator))
-        return f"{numerator:{prec}.0f}/{denominator}"
+    def div(numerator_list: List[Job], denominator_list: List[Job]) -> str:
+        prec = len(str(len(denominator_list)))
+        return f"{len(numerator_list):{prec}.0f}/{len(denominator_list)}"
 
     # Successful Jobs
     success = (
-        f"Successful Jobs: {div(len(successful_jobs),total)} "
-        f"{percentange(len(successful_jobs),total)}\n"
+        f"Successful Jobs: {div(successful_jobs,jobs)} "
+        f"{percentange(successful_jobs,jobs)}\n"
     )
 
     held = ""
@@ -425,30 +422,27 @@ def stats(failed_jobs: List[Job], successful_jobs: List[Job]) -> str:
     dashes = ""
     total_failed = ""
     # Failed Jobs
-    if total:
+    if failed_jobs:
         # Held Jobs
-        held_count = len([j for j in failed_jobs if j.fail_type == Job.HELD])
-        held = (
-            f"Held Jobs:       {div(held_count,total)} "
-            f"{percentange(held_count,total)}\n"
-        )
+        helds = [j for j in failed_jobs if j.exit_status == JobExitStatus.HELD]
+        held = f"Held Jobs:       {div(helds,jobs)} " f"{percentange(helds,jobs)}\n"
 
         # Non-Zero Jobs
-        non_zero_count = len([j for j in failed_jobs if j.fail_type == Job.NON_ZERO])
+        non_zeros = [j for j in failed_jobs if j.exit_status == JobExitStatus.NON_ZERO]
         non_zero = (
-            f"Non-Zero Jobs:   {div(non_zero_count,total)} "
-            f"{percentange(non_zero_count,total)}\n"
+            f"Non-Zero Jobs:   {div(non_zeros,jobs)} "
+            f"{percentange(non_zeros,jobs)}\n"
         )
 
         dashes = "---\n"
 
         # Total Failed
         total_failed = (
-            f"Total Failed:    {div(len(failed_jobs),total)} "
-            f"{percentange(len(failed_jobs),total)}\n"
+            f"Total Failed:    {div(failed_jobs,jobs)} "
+            f"{percentange(failed_jobs,jobs)}\n"
         )
 
-    equals = f"{'=' * max_line_len([success,held,non_zero,total_failed])}\n"
+    equals = f"{'=' * max_line_len([success, held, non_zero, total_failed])}\n"
 
     return f"{success}{equals}{held}{non_zero}{dashes}{total_failed}"
 
@@ -511,15 +505,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    successful_jobs, failed_jobs = get_all_jobs(
-        args.path, args.workers, only_failed_ids=args.failed
-    )
+    # Get jobs
+    jobs = get_all_jobs(args.path, args.workers, only_failed_ids=args.failed)
+
+    # Summarize
+    jobs_to_summarize = jobs
     if args.failed:
-        jobs = failed_jobs
-    else:
-        jobs = successful_jobs + failed_jobs
+        jobs_to_summarize = [j for j in jobs if j.exit_status != JobExitStatus.SUCCESS]
     summaries = get_job_summaries(
-        jobs,
+        jobs_to_summarize,
         args.workers,
         keywords=args.keywords,
         sort_by_value=args.sort,
@@ -532,7 +526,7 @@ def main() -> None:
 
     # Print stats
     print("\n")
-    print(stats(failed_jobs, successful_jobs))
+    print(stats(jobs))
 
 
 if __name__ == "__main__":
