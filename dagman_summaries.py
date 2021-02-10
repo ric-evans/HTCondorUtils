@@ -275,6 +275,7 @@ def _get_jobs(path: str) -> List[Job]:
         id_ = re.findall(r"\(.+\)", line.strip())[0][1:-1]
         return typing.cast(str, id_)
 
+    # Jobs in dag.nodes.log
     jobs = []
     prev_line = ""
     with open(os.path.join(path, "dag.nodes.log"), "r") as file:
@@ -303,22 +304,20 @@ def _get_jobs(path: str) -> List[Job]:
         f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.HELD])} held jobs"
     )
 
+    # Jobs premarked as DONE in dag.rescue*
+    success_before_rescue_ct = 0
     for rescue in [fn for fn in os.listdir(path) if "dag.rescue" in fn]:
         with open(os.path.join(path, rescue)) as file:
             for line in file:
                 if "Nodes premarked DONE: " in line:
                     premarked = int(line.strip().split("Nodes premarked DONE: ")[1])
-                    jobs.extend(
-                        Job(
-                            f"rescue-{rescue}-{i}",
-                            JobExitStatus.SUCCESS_BEFORE_RESCUE,
-                            f"rescue-{rescue}-{i}",
-                        )
-                        for i in range(premarked)
-                    )
-                    logging.debug(f"Found {premarked} rescue jobs in {rescue}")
+                    success_before_rescue_ct = max(success_before_rescue_ct, premarked)
+                    logging.debug(f"Found {premarked} jobs premarked DONE in {rescue}")
                     break
-
+    jobs.extend(
+        Job(f"rescue-{i}", JobExitStatus.SUCCESS_BEFORE_RESCUE, f"rescue-{i}")
+        for i in range(success_before_rescue_ct)
+    )
     logging.info(
         f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.SUCCESS_BEFORE_RESCUE])} success-before-rescue jobs"
     )
