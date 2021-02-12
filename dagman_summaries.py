@@ -29,6 +29,10 @@ class JobExitStatus(Enum):
     HELD = auto()
     SUCCESS_BEFORE_RESCUE = auto()
 
+    def to_string(self) -> str:
+        """Get enum name."""
+        return str(self).split(".")[-1]
+
 
 class Job:  # pylint: disable=R0902
     """Encapsulates HTCondor/DAGMan job info."""
@@ -51,7 +55,7 @@ class Job:  # pylint: disable=R0902
         """To string."""
         return (
             "Job("
-            f"{str(self.exit_status).split('.')[-1]}, "
+            f"{self.exit_status.to_string()}, "
             f"cluster_id={self.cluster_id}, "
             f"job_id={self.job_id}"
             ")"
@@ -201,7 +205,10 @@ class Job:  # pylint: disable=R0902
         add_keyword_matches: bool = True,
     ) -> str:
         """Return formatted summary string."""
-        title = str(self).replace("(", " — ").replace(", ", " | ").replace(")", "")
+        if verbose:
+            title = str(self).replace("(", " — ").replace(", ", " | ").replace(")", "")
+        else:
+            title = f"{self.exit_status.to_string().lower()}/{self.cluster_id}/{self.job_id}"
         err_title, err_msg = self._get_summary_error_message(verbose)
 
         keywords_title, keyword_lines_list = self._get_summary_keywords(
@@ -219,8 +226,8 @@ class Job:  # pylint: disable=R0902
         length = max_line_len(
             [title, err_title, err_msg, keywords_title, start, end, wall_time]
         )
-        stars = "*" * (length - len(title) - 1)
-        dashes_nln = "-" * length + "\n"
+        stars = "—" * (length - len(title) - 1)
+        dashes_nln = "—" * length + "\n"
         nln = "\n"  # '\n' isn't allowed in f-string expression parts
 
         def nln_it(string: str) -> str:
@@ -267,9 +274,10 @@ def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
         return typing.cast(str, id_)
 
     def log_jobs(jobs: List[Job], job_exit_status: JobExitStatus) -> None:
-        kind = str(job_exit_status).split(".")[-1]  # get enum name
         these_jobs = [j for j in jobs if j.exit_status == job_exit_status]
-        logging.info(f"Found {len(these_jobs)} {kind.lower()} jobs")
+        logging.info(
+            f"Found {len(these_jobs)} {job_exit_status.to_string().lower()} jobs"
+        )
         if only_log_failed and these_jobs and these_jobs[0].failed():
             for job in these_jobs:
                 logging.debug(job)
