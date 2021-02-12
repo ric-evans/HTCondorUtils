@@ -101,15 +101,15 @@ class Job:  # pylint: disable=R0902
         Cache result.
         """
         if not self.__error_message:
-            # non-zero jobs -- search for keywords, and grab last line from *.err file
+            # non-zero jobs -- search for keywords, and grab last line from .err file
             if self.exit_status == JobExitStatus.NON_ZERO:
                 with open(self.err_filepath, "r") as file:
                     self.__error_message = list(file)[-1].strip()
 
-            # held jobs -- grab 'Error' line from *.log file
+            # held jobs -- grab *last* 'Error' line from .log file
             elif self.exit_status == JobExitStatus.HELD:
                 with open(self.log_filepath, "r") as file:
-                    for line in file:
+                    for line in reversed(list(file)):
                         if "Error" in line:
                             self.__error_message = line.strip()
                             break
