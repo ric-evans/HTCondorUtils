@@ -297,7 +297,9 @@ def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
     # Jobs in dag.nodes.log
     jobs = []
     prev_line = ""
-    with open(os.path.join(dir_path, "dag.nodes.log"), "r") as file:
+    dag_nodes_log = os.path.join(dir_path, "dag.nodes.log")
+    logging.info(f"Looking at {dag_nodes_log}...")
+    with open(dag_nodes_log, "r") as file:
         for line in file:
             # Job returned on its own accord
             if "(return value" in line:
@@ -317,9 +319,15 @@ def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
 
             prev_line = line
 
+    # log jobs
+    log_jobs(jobs, JobExitStatus.SUCCESS)
+    log_jobs(jobs, JobExitStatus.NON_ZERO)
+    log_jobs(jobs, JobExitStatus.HELD)
+
     # Jobs premarked as DONE in dag.rescue*
     success_before_rescue_ct = 0
     for rescue in [fn for fn in os.listdir(dir_path) if "dag.rescue" in fn]:
+        logging.info(f"Looking at {rescue}...")
         with open(os.path.join(dir_path, rescue)) as file:
             for line in file:
                 if "Nodes premarked DONE: " in line:
@@ -333,9 +341,6 @@ def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
     )
 
     # log jobs
-    log_jobs(jobs, JobExitStatus.SUCCESS)
-    log_jobs(jobs, JobExitStatus.NON_ZERO)
-    log_jobs(jobs, JobExitStatus.HELD)
     log_jobs(jobs, JobExitStatus.SUCCESS_BEFORE_RESCUE)
 
     return jobs
