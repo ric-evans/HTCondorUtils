@@ -278,9 +278,10 @@ def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
 
     def log_jobs(jobs: List[Job], job_exit_status: JobExitStatus) -> None:
         kind = str(job_exit_status).split(".")[-1]  # get enum name
-        logging.info(f"Found {len(jobs)} {kind.lower()} jobs")
-        if only_log_failed and jobs and jobs[0].failed():
-            for job in jobs:
+        these_jobs = [j for j in jobs if j.exit_status == job_exit_status]
+        logging.info(f"Found {len(these_jobs)} {kind.lower()} jobs")
+        if only_log_failed and these_jobs and these_jobs[0].failed():
+            for job in these_jobs:
                 logging.debug(f"{kind.upper()}: {job}")
 
     # Jobs in dag.nodes.log
