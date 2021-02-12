@@ -1,4 +1,5 @@
 """Print out failed HTCondor/DAGMan jobs and associated summaries."""
+
 import argparse
 import concurrent.futures
 import logging
@@ -275,6 +276,12 @@ def _get_jobs(path: str) -> List[Job]:
         id_ = re.findall(r"\(.+\)", line.strip())[0][1:-1]
         return typing.cast(str, id_)
 
+    def log_jobs(jobs: List[Job], job_exit_status: JobExitStatus) -> None:
+        kind = str(job_exit_status).split(".")[-1]  # get enum name
+        logging.info(f"Found {len(jobs)} {kind.lower()} jobs")
+        for job in jobs:
+            logging.debug(f"{kind.upper()}: {job}")
+
     # Jobs in dag.nodes.log
     jobs = []
     prev_line = ""
@@ -284,25 +291,19 @@ def _get_jobs(path: str) -> List[Job]:
             if "(return value" in line:
                 # Success
                 if "(return value 0)" in line:
-                    jobs.append(Job(path, JobExitStatus.SUCCESS, get_cluster_id(prev_line)))
+                    jobs.append(
+                        Job(path, JobExitStatus.SUCCESS, get_cluster_id(prev_line))
+                    )
                 # Fail
                 else:
-                    jobs.append(Job(path, JobExitStatus.NON_ZERO, get_cluster_id(prev_line)))
+                    jobs.append(
+                        Job(path, JobExitStatus.NON_ZERO, get_cluster_id(prev_line))
+                    )
             # Job was held
             elif "Job was held" in line:
                 jobs.append(Job(path, JobExitStatus.HELD, get_cluster_id(line)))
 
             prev_line = line
-
-    logging.info(
-        f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.SUCCESS])} success jobs"
-    )
-    logging.info(
-        f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.NON_ZERO])} non-zero jobs"
-    )
-    logging.info(
-        f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.HELD])} held jobs"
-    )
 
     # Jobs premarked as DONE in dag.rescue*
     success_before_rescue_ct = 0
@@ -318,9 +319,12 @@ def _get_jobs(path: str) -> List[Job]:
         Job(f"rescue-{i}", JobExitStatus.SUCCESS_BEFORE_RESCUE, f"rescue-{i}")
         for i in range(success_before_rescue_ct)
     )
-    logging.info(
-        f"Found {len([j for j in jobs if j.exit_status == JobExitStatus.SUCCESS_BEFORE_RESCUE])} success-before-rescue jobs"
-    )
+
+    # log jobs
+    log_jobs(jobs, JobExitStatus.SUCCESS)
+    log_jobs(jobs, JobExitStatus.NON_ZERO)
+    log_jobs(jobs, JobExitStatus.HELD)
+    log_jobs(jobs, JobExitStatus.SUCCESS_BEFORE_RESCUE)
 
     return jobs
 
@@ -544,7 +548,14 @@ def main() -> None:
         help="don't print lines containing keywords (useful if there are many matches)",
     )
     args = parser.parse_args()
-    logging.basicConfig(level="DEBUG")
+
+    # fmt:off
+    try:
+        import coloredlogs  # type: ignore[import]  # pylint: disable=C0415
+        coloredlogs.install(level="DEBUG")
+    except ImportError:
+        logging.basicConfig(level="DEBUG")
+    # fmt:on
 
     # Get jobs
     jobs = get_all_jobs(args.path, args.workers, only_failed_ids=args.failed)
