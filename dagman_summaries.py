@@ -258,8 +258,8 @@ class Job:  # pylint: disable=R0902
         return summary
 
 
-def _set_job_id(path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
-    with open(os.path.join(path, filename), "r") as file:
+def _set_job_id(dir_path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
+    with open(os.path.join(dir_path, filename), "r") as file:
         for line in file:
             for job in jobs:
                 if job.cluster_id in line:
@@ -269,7 +269,7 @@ def _set_job_id(path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
     return None
 
 
-def _get_jobs(path: str) -> List[Job]:
+def _get_jobs(dir_path: str) -> List[Job]:
     """Get the failed and successful cluster jobs."""
 
     def get_cluster_id(line: str) -> str:
@@ -285,30 +285,30 @@ def _get_jobs(path: str) -> List[Job]:
     # Jobs in dag.nodes.log
     jobs = []
     prev_line = ""
-    with open(os.path.join(path, "dag.nodes.log"), "r") as file:
+    with open(os.path.join(dir_path, "dag.nodes.log"), "r") as file:
         for line in file:
             # Job returned on its own accord
             if "(return value" in line:
                 # Success
                 if "(return value 0)" in line:
                     jobs.append(
-                        Job(path, JobExitStatus.SUCCESS, get_cluster_id(prev_line))
+                        Job(dir_path, JobExitStatus.SUCCESS, get_cluster_id(prev_line))
                     )
                 # Fail
                 else:
                     jobs.append(
-                        Job(path, JobExitStatus.NON_ZERO, get_cluster_id(prev_line))
+                        Job(dir_path, JobExitStatus.NON_ZERO, get_cluster_id(prev_line))
                     )
             # Job was held
             elif "Job was held" in line:
-                jobs.append(Job(path, JobExitStatus.HELD, get_cluster_id(line)))
+                jobs.append(Job(dir_path, JobExitStatus.HELD, get_cluster_id(line)))
 
             prev_line = line
 
     # Jobs premarked as DONE in dag.rescue*
     success_before_rescue_ct = 0
-    for rescue in [fn for fn in os.listdir(path) if "dag.rescue" in fn]:
-        with open(os.path.join(path, rescue)) as file:
+    for rescue in [fn for fn in os.listdir(dir_path) if "dag.rescue" in fn]:
+        with open(os.path.join(dir_path, rescue)) as file:
             for line in file:
                 if "Nodes premarked DONE: " in line:
                     premarked = int(line.strip().split("Nodes premarked DONE: ")[1])
@@ -316,7 +316,7 @@ def _get_jobs(path: str) -> List[Job]:
                     logging.debug(f"Found {premarked} jobs premarked DONE in {rescue}")
                     break
     jobs.extend(
-        Job(f"rescue-{i}", JobExitStatus.SUCCESS_BEFORE_RESCUE, f"rescue-{i}")
+        Job(dir_path, JobExitStatus.SUCCESS_BEFORE_RESCUE, f"rescue-{i}")
         for i in range(success_before_rescue_ct)
     )
 
@@ -330,12 +330,14 @@ def _get_jobs(path: str) -> List[Job]:
 
 
 def get_all_jobs(
-    path: str, max_workers: int, only_failed_ids: bool = True
+    dir_path: str, max_workers: int, only_failed_ids: bool = True
 ) -> List[Job]:
     """Return list of successful and failed jobs."""
-    job_by_cluster_id = {j.cluster_id: j for j in _get_jobs(path)}
+    job_by_cluster_id = {j.cluster_id: j for j in _get_jobs(dir_path)}
     files = [
-        fn for fn in os.listdir(path) if (".log" in fn) and ("dag.nodes.log" not in fn)
+        fn
+        for fn in os.listdir(dir_path)
+        if (".log" in fn) and ("dag.nodes.log" not in fn)
     ]
     lookup_jobs = list(job_by_cluster_id.values())
     if only_failed_ids:
@@ -345,7 +347,7 @@ def get_all_jobs(
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
         file_workers.extend(
-            pool.submit(_set_job_id, path, f, lookup_jobs) for f in files
+            pool.submit(_set_job_id, dir_path, f, lookup_jobs) for f in files
         )
 
     # get jobs, now with job_ids
@@ -373,14 +375,10 @@ def _arrange_job_summaries(
 ) -> List[Tuple[Job, str]]:
 
     try:
-        # pylint: disable=C0415
-        from natsort import natsorted as sort_func  # type: ignore
+        from natsort import natsorted as sort_func  # type: ignore # pylint: disable=C0415
     except ModuleNotFoundError:
-        # pylint: disable=C0103
-        WARN = "\033[93m"
-        ENDC = "\033[0m"
-        print(
-            f"{WARN}>> pip install natsort to sort jobs naturally, instead of lexicographically{ENDC}\n"
+        logging.warning(
+            ">> pip install natsort to sort jobs naturally, instead of lexicographically{ENDC}\n"
         )
         sort_func = sorted
 
