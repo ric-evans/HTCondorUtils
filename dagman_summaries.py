@@ -271,7 +271,7 @@ def _set_job_id(path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
 def _get_jobs(path: str) -> List[Job]:
     """Get the failed and successful cluster jobs."""
 
-    def get_id(line: str) -> str:
+    def get_cluster_id(line: str) -> str:
         id_ = re.findall(r"\(.+\)", line.strip())[0][1:-1]
         return typing.cast(str, id_)
 
@@ -284,13 +284,13 @@ def _get_jobs(path: str) -> List[Job]:
             if "(return value" in line:
                 # Success
                 if "(return value 0)" in line:
-                    jobs.append(Job(path, JobExitStatus.SUCCESS, get_id(prev_line)))
+                    jobs.append(Job(path, JobExitStatus.SUCCESS, get_cluster_id(prev_line)))
                 # Fail
                 else:
-                    jobs.append(Job(path, JobExitStatus.NON_ZERO, get_id(prev_line)))
+                    jobs.append(Job(path, JobExitStatus.NON_ZERO, get_cluster_id(prev_line)))
             # Job was held
             elif "Job was held" in line:
-                jobs.append(Job(path, JobExitStatus.HELD, get_id(line)))
+                jobs.append(Job(path, JobExitStatus.HELD, get_cluster_id(line)))
 
             prev_line = line
 
