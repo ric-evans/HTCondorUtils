@@ -269,7 +269,7 @@ def _set_job_id(dir_path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
     return None
 
 
-def _get_jobs(dir_path: str) -> List[Job]:
+def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
     """Get the failed and successful cluster jobs."""
 
     def get_cluster_id(line: str) -> str:
@@ -279,8 +279,9 @@ def _get_jobs(dir_path: str) -> List[Job]:
     def log_jobs(jobs: List[Job], job_exit_status: JobExitStatus) -> None:
         kind = str(job_exit_status).split(".")[-1]  # get enum name
         logging.info(f"Found {len(jobs)} {kind.lower()} jobs")
-        for job in jobs:
-            logging.debug(f"{kind.upper()}: {job}")
+        if only_log_failed and jobs and jobs[0].failed():
+            for job in jobs:
+                logging.debug(f"{kind.upper()}: {job}")
 
     # Jobs in dag.nodes.log
     jobs = []
@@ -333,7 +334,9 @@ def get_all_jobs(
     dir_path: str, max_workers: int, only_failed_ids: bool = True
 ) -> List[Job]:
     """Return list of successful and failed jobs."""
-    job_by_cluster_id = {j.cluster_id: j for j in _get_jobs(dir_path)}
+    job_by_cluster_id = {
+        j.cluster_id: j for j in _get_jobs(dir_path, only_log_failed=only_failed_ids)
+    }
     files = [
         fn
         for fn in os.listdir(dir_path)
