@@ -47,6 +47,16 @@ class Job:  # pylint: disable=R0902
         self.start_time = None  # type: Optional[datetime]
         self.end_time = None  # type: Optional[datetime]
 
+    def __str__(self) -> str:
+        """To string."""
+        return (
+            "Job("
+            f"{str(self.exit_status).split('.')[-1]}, "
+            f"cluster_id={self.cluster_id}, "
+            f"job_id={self.job_id}"
+            ")"
+        )
+
     @property
     def job_id(self) -> str:
         """Get job_id."""
@@ -282,7 +292,7 @@ def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
         logging.info(f"Found {len(these_jobs)} {kind.lower()} jobs")
         if only_log_failed and these_jobs and these_jobs[0].failed():
             for job in these_jobs:
-                logging.debug(f"{kind.upper()}: {job}")
+                logging.debug(job)
 
     # Jobs in dag.nodes.log
     jobs = []
