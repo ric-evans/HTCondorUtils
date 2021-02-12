@@ -201,7 +201,7 @@ class Job:  # pylint: disable=R0902
         add_keyword_matches: bool = True,
     ) -> str:
         """Return formatted summary string."""
-        title = str(self)
+        title = str(self).replace("(", " — ").replace(", ", " | ").replace(")", "")
         err_title, err_msg = self._get_summary_error_message(verbose)
 
         keywords_title, keyword_lines_list = self._get_summary_keywords(
