@@ -136,26 +136,6 @@ class Job:  # pylint: disable=R0902
 
         return start, end
 
-    def _get_summary_title(self, verbose: int) -> str:
-        """Return a formatted title."""
-        if self.exit_status == JobExitStatus.SUCCESS:
-            grade = "successful"
-        elif self.exit_status == JobExitStatus.SUCCESS_BEFORE_RESCUE:
-            grade = "successful (before rescue dag)"
-        elif self.exit_status == JobExitStatus.HELD:
-            grade = "held"
-        elif self.exit_status == JobExitStatus.NON_ZERO:
-            grade = "returned non-zero value"
-        else:
-            raise Exception(f"Unaccounted for exit status: {self.exit_status}")
-
-        if verbose:
-            title = f"job{self.job_id} ({self.cluster_id}) {grade}"
-        else:
-            title = f"job{self.job_id} {grade}"
-
-        return title
-
     def _get_summary_error_message(self, verbose: int) -> Tuple[str, str]:
         """Get the error message."""
         if not self.error_message:
@@ -221,7 +201,7 @@ class Job:  # pylint: disable=R0902
         add_keyword_matches: bool = True,
     ) -> str:
         """Return formatted summary string."""
-        title = self._get_summary_title(verbose)
+        title = str(self)
         err_title, err_msg = self._get_summary_error_message(verbose)
 
         keywords_title, keyword_lines_list = self._get_summary_keywords(
