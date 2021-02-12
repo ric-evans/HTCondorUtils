@@ -146,7 +146,7 @@ class Job:  # pylint: disable=R0902
             return "", ""
 
         if verbose == 0:
-            return "", f" > {self.error_message}"
+            return "", f"> {self.error_message}"
         elif verbose == 1:
             return "", f"> {self.error_message}"
         else:
@@ -208,7 +208,7 @@ class Job:  # pylint: disable=R0902
         if verbose:
             title = str(self).replace("(", " — ").replace(", ", " | ").replace(")", "")
         else:
-            title = f"{self.exit_status.to_string().lower()}/{self.cluster_id}/{self.job_id}"
+            title = f"{self.exit_status.to_string()}/{self.cluster_id}/{self.job_id}"
         err_title, err_msg = self._get_summary_error_message(verbose)
 
         keywords_title, keyword_lines_list = self._get_summary_keywords(
