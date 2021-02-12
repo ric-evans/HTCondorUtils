@@ -333,7 +333,7 @@ def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
                 if "Nodes premarked DONE: " in line:
                     premarked = int(line.strip().split("Nodes premarked DONE: ")[1])
                     success_before_rescue_ct = max(success_before_rescue_ct, premarked)
-                    logging.debug(f"Found {premarked} jobs premarked DONE in {rescue}")
+                    logging.debug(f"Found {premarked} jobs premarked DONE")
                     break
     jobs.extend(
         Job(dir_path, JobExitStatus.SUCCESS_BEFORE_RESCUE, f"rescue-{i}")
