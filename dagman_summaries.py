@@ -12,6 +12,8 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from dateutil.parser import parse as parse_dt
 
+MAX_COLUMNS = 120
+
 
 def max_line_len(lines: List[str]) -> int:
     r"""Get length of longest line (split on \n) in `lines`."""
@@ -223,11 +225,8 @@ class Job:  # pylint: disable=R0902
         start, end, wall_time = self._get_summary_time_info(verbose)
 
         # Make Separators
-        length = max_line_len(
-            [title, err_title, err_msg, keywords_title, start, end, wall_time]
-        )
-        stars = "—" * (length - len(title) - 1)
-        dashes_nln = "—" * length + "\n"
+        stars = "—" * max(0, MAX_COLUMNS - len(title) - 1)
+        dashes_nln = "—" * MAX_COLUMNS + "\n"
         nln = "\n"  # '\n' isn't allowed in f-string expression parts
 
         def nln_it(string: str) -> str:
