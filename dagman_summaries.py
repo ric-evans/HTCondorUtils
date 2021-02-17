@@ -76,7 +76,7 @@ class Job:  # pylint: disable=R0902
         if value:
             self.err_filepath = os.path.join(self.dir_path, f"{value}.err")
             self.log_filepath = os.path.join(self.dir_path, f"{value}.log")
-            self.start_time, self.end_time = self._get_start_end_times()
+            self._figure_start_end_times()
 
     def failed(self) -> bool:
         """Return whether the job did fail (held or non-zero)."""
@@ -122,7 +122,7 @@ class Job:  # pylint: disable=R0902
 
         return self.__error_message
 
-    def _get_start_end_times(self) -> Tuple[Optional[datetime], Optional[datetime]]:
+    def _figure_start_end_times(self) -> None:
         def get_datetime(line: str) -> datetime:
             raw_dt = re.findall(r".*\) (.*) Job", line)[0]
             return parse_dt(raw_dt)
@@ -140,7 +140,8 @@ class Job:  # pylint: disable=R0902
                     if start and end:
                         break
 
-        return start, end
+        self.start_time = start
+        self.end_time = end
 
     def _get_summary_error_message(self, verbose: int) -> Tuple[str, str]:
         """Get the error message."""
@@ -398,11 +399,11 @@ def _arrange_job_summaries(
         )
     elif sort_by_value == "start":
         job_summaries = sort_func(
-            job_summaries, key=lambda x: x[0].start, reverse=reverse
+            job_summaries, key=lambda x: x[0].start_time, reverse=reverse
         )
     elif sort_by_value == "end":
         job_summaries = sort_func(
-            job_summaries, key=lambda x: x[0].end, reverse=reverse
+            job_summaries, key=lambda x: x[0].end_time, reverse=reverse
         )
     elif sort_by_value == "success":
         job_summaries = sort_func(
@@ -410,7 +411,12 @@ def _arrange_job_summaries(
         )
     elif sort_by_value == "walltime":
         job_summaries = sort_func(
-            job_summaries, key=lambda x: (x[0].end - x[0].start), reverse=reverse
+            job_summaries,
+            key=lambda x: (  # https://stackoverflow.com/a/48235298/13156561
+                x[0].end_time and x[0].start_time,
+                x[0].end_time - x[0].start_time,
+            ),
+            reverse=reverse,
         )
 
     return job_summaries
