@@ -350,6 +350,8 @@ def get_all_jobs(
     if only_failed_ids:
         lookup_jobs = [j for j in lookup_jobs if j.failed()]
 
+    logging.debug(f"Pairing cluster ids with jobs ids (max_workers={max_workers})...")
+
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
@@ -432,6 +434,8 @@ def get_job_summaries(  # pylint: disable=R0913
     print_keyword_matches: bool = True,
 ) -> List[str]:
     """Get list of each job's summary."""
+    logging.debug(f"Summarizing each job (max_workers={max_workers})...")
+
     # make messages
     workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
@@ -455,6 +459,8 @@ def get_job_summaries(  # pylint: disable=R0913
 
 def stats(jobs: List[Job]) -> str:
     """Get stats."""
+    logging.debug("Getting aggregated stats...")
+
     successful_jobs = [j for j in jobs if not j.failed()]
     failed_jobs = [j for j in jobs if j.failed()]
 
