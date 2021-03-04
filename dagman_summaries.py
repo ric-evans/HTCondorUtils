@@ -10,6 +10,7 @@ from datetime import datetime
 from enum import auto, Enum
 from typing import Dict, List, Optional, Set, Tuple
 
+import progress.bar  # type: ignore[import]
 from dateutil.parser import parse as parse_dt
 
 MAX_COLUMNS = 120
@@ -360,11 +361,14 @@ def get_all_jobs(
         )
 
     # get jobs, now with job_ids
+    progress_bar = progress.bar.Bar("Processing", max=len(file_workers))
     for worker in concurrent.futures.as_completed(file_workers):
+        progress_bar.next()
         ret_job = worker.result()
         if not ret_job:
             continue
         job_by_cluster_id[ret_job.cluster_id] = ret_job
+    progress_bar.finish()
 
     logging.info(f"Found {len(job_by_cluster_id)} total jobs")
     return list(job_by_cluster_id.values())
