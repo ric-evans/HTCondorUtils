@@ -257,6 +257,7 @@ class Job:  # pylint: disable=R0902
 
 
 def _set_job_ids(dir_path: str, log_files: List[str], jobs: List[Job]) -> List[Job]:
+    prog_bar = pg.Bar("Worker", max=len(log_files), suffix="%(percent)d%%")
     ret_jobs = []
     for log_fname in log_files:
         with open(os.path.join(dir_path, log_fname), "r") as file:
@@ -266,6 +267,8 @@ def _set_job_ids(dir_path: str, log_files: List[str], jobs: List[Job]) -> List[J
                         # filename w/o extension, 5023.log
                         job.job_id = log_fname.split(".")[0]
                         ret_jobs.append(job)
+        prog_bar.next()
+    prog_bar.finish()
     return ret_jobs
 
 
