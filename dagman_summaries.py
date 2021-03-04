@@ -19,12 +19,12 @@ MAX_COLUMNS = 120
 class ProgBar(progress.bar.Bar):  # type: ignore[misc]
     """Common progress bar."""
 
-    suffix = "%(index)d/%(max)d | %(percent)d%% | %(remaining_hours)d hours remaining"
+    suffix = "%(index)d/%(max)d | %(percent)d%% | %(remaining_mins)d minutes remaining"
 
     @property
-    def remaining_hours(self) -> int:
-        """Do hours for ETA."""
-        return self.eta // 3600  # type: ignore[no-any-return]
+    def remaining_mins(self) -> float:
+        """Do minutes for ETA."""
+        return self.eta // 60  # type: ignore[no-any-return]
 
 
 def max_line_len(lines: List[str]) -> int:
