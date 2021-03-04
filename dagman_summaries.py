@@ -256,15 +256,17 @@ class Job:  # pylint: disable=R0902
         return summary
 
 
-def _set_job_id(dir_path: str, filename: str, jobs: List[Job]) -> Optional[Job]:
-    with open(os.path.join(dir_path, filename), "r") as file:
-        for line in file:
-            for job in jobs:
-                if job.cluster_id in line:
-                    # filename w/o extension, 5023.log
-                    job.job_id = filename.split(".")[0]
-                    return job
-    return None
+def _set_job_ids(dir_path: str, log_files: List[str], jobs: List[Job]) -> List[Job]:
+    ret_jobs = []
+    for log_fname in log_files:
+        with open(os.path.join(dir_path, log_fname), "r") as file:
+            for line in file:
+                for job in jobs:
+                    if job.cluster_id in line:
+                        # filename w/o extension, 5023.log
+                        job.job_id = log_fname.split(".")[0]
+                        ret_jobs.append(job)
+    return ret_jobs
 
 
 def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
@@ -342,7 +344,7 @@ def get_all_jobs(
     job_by_cluster_id = {
         j.cluster_id: j for j in _get_jobs(dir_path, only_log_failed=only_failed_ids)
     }
-    files = [
+    log_files = [
         fn
         for fn in os.listdir(dir_path)
         if (".log" in fn) and ("dag.nodes.log" not in fn)
@@ -355,21 +357,28 @@ def get_all_jobs(
 
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
-    prog_bar = pg.Bar("Dispatching Workers", max=len(files), suffix="%(percent)d%%")
+    prog_bar = pg.Bar("Dispatching", max=max_workers + 1, suffix="%(percent)d%%")
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
-        for file in files:
-            file_workers.append(pool.submit(_set_job_id, dir_path, file, lookup_jobs))
+        for i in range(max_workers):
+            log_files_subset = []
+            for k, log in enumerate(log_files):
+                if k % max_workers == i:
+                    log_files_subset.append(log)
+            file_workers.append(
+                pool.submit(_set_job_ids, dir_path, log_files_subset, lookup_jobs)
+            )
             prog_bar.next()
     prog_bar.finish()
 
     # get jobs, now with job_ids
     prog_bar = pg.Bar("Collecting Pairs", max=len(file_workers), suffix="%(percent)d%%")
     for worker in concurrent.futures.as_completed(file_workers):
-        prog_bar.next()
-        ret_job = worker.result()
-        if not ret_job:
+        ret_jobs = worker.result()
+        if not ret_jobs:
             continue
-        job_by_cluster_id[ret_job.cluster_id] = ret_job
+        for ret_job in ret_jobs:
+            job_by_cluster_id[ret_job.cluster_id] = ret_job
+            prog_bar.next()
     prog_bar.finish()
 
     logging.info(f"Found {len(job_by_cluster_id)} total jobs")
