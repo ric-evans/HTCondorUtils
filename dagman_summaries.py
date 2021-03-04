@@ -357,7 +357,7 @@ def get_all_jobs(
 
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
-    prog_bar = pg.Bar("Dispatching", max=max_workers + 1, suffix="%(percent)d%%")
+    prog_bar = pg.Bar("Dispatching", max=max_workers, suffix="%(percent)d%%")
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
         for i in range(max_workers):
             log_files_subset = []
