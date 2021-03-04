@@ -14,7 +14,7 @@ import progress.bar as pg  # type: ignore[import]
 from dateutil.parser import parse as parse_dt
 
 MAX_COLUMNS = 120
-PROG_SUFFIX = "%(index)d/%(max)d | %(percent)d%%"
+PROG_SUFFIX = "%(index)d/%(max)d | %(percent)d%% | %(eta)d"
 
 
 def max_line_len(lines: List[str]) -> int:
