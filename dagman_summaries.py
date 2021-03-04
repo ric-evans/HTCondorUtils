@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import auto, Enum
 from typing import Dict, List, Optional, Set, Tuple
 
-import progress.bar  # type: ignore[import]
+import progress.bar as pg  # type: ignore[import]
 from dateutil.parser import parse as parse_dt
 
 MAX_COLUMNS = 120
@@ -352,26 +352,26 @@ def get_all_jobs(
         lookup_jobs = [j for j in lookup_jobs if j.failed()]
 
     logging.debug(f"Pairing cluster ids with jobs ids (max_workers={max_workers})...")
-    progress_bar = progress.bar.Bar(
-        "Processing", max=len(files) * 2, suffix="%(percent)d%%"
-    )
 
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
+    prog_bar = pg.Bar("Dispatching Workers", max=len(files), suffix="%(percent)d%%")
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
         for file in files:
             file_workers.append(pool.submit(_set_job_id, dir_path, file, lookup_jobs))
-            progress_bar.next()
+            prog_bar.next()
+    prog_bar.finish()
 
     # get jobs, now with job_ids
+    prog_bar = pg.Bar("Collecting Pairs", max=len(file_workers), suffix="%(percent)d%%")
     for worker in concurrent.futures.as_completed(file_workers):
-        progress_bar.next()
+        prog_bar.next()
         ret_job = worker.result()
         if not ret_job:
             continue
         job_by_cluster_id[ret_job.cluster_id] = ret_job
+    prog_bar.finish()
 
-    progress_bar.finish()
     logging.info(f"Found {len(job_by_cluster_id)} total jobs")
     return list(job_by_cluster_id.values())
 
@@ -444,19 +444,25 @@ def get_job_summaries(  # pylint: disable=R0913
 
     # make messages
     workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
+    prog_bar = pg.Bar("Dispatching Workers", max=len(jobs), suffix="%(percent)d%%")
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
-        workers.extend(
-            pool.submit(
-                _get_job_and_summary, j, keywords, verbose, print_keyword_matches
+        for job in jobs:
+            workers.append(
+                pool.submit(
+                    _get_job_and_summary, job, keywords, verbose, print_keyword_matches
+                )
             )
-            for j in jobs
-        )
+            prog_bar.next()
+    prog_bar.finish()
 
     # get messages
     job_summaries = []  # type: List[Tuple[Job, str]]
+    prog_bar = pg.Bar("Collecting Summaries", max=len(workers), suffix="%(percent)d%%")
     for worker in concurrent.futures.as_completed(workers):
         job, summary = worker.result()
         job_summaries.append((job, summary))
+        prog_bar.next()
+    prog_bar.finish()
 
     # arrange messages
     job_summaries = _arrange_job_summaries(job_summaries, sort_by_value, reverse)
