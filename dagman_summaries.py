@@ -552,7 +552,7 @@ def main() -> None:
     parser.add_argument(
         "--success-logs-out",
         default=None,
-        help="a place to write successes.dag "
+        help="a place to write success-dag-logs.paths "
         "(a file containing each successful job's *.log filepath",
     )
     args = parser.parse_args()
@@ -570,10 +570,13 @@ def main() -> None:
 
     # Write out success jobs
     if args.success_logs_out:
-        with open(args.success_logs_out, "w") as slogs_f:
+        fname = os.path.join(args.success_logs_out, "success-dag-logs.paths")
+        logging.info(f"Writing each successful job's *.log filepath to {fname}")
+        with open(fname, "w") as slogs_f:
             for job in jobs:
                 if job.exit_status == JobExitStatus.SUCCESS:
                     print(job.log_filepath, file=slogs_f)
+        return
 
     # Summarize
     jobs_to_summarize = jobs
