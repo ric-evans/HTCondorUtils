@@ -357,10 +357,9 @@ def get_all_jobs(
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
-        progress_bar.next()
-        file_workers.extend(
-            pool.submit(_set_job_id, dir_path, f, lookup_jobs) for f in files
-        )
+        for file in files:
+            file_workers.append(pool.submit(_set_job_id, dir_path, file, lookup_jobs))
+            progress_bar.next()
 
     # get jobs, now with job_ids
     for worker in concurrent.futures.as_completed(file_workers):
