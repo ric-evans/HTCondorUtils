@@ -508,7 +508,6 @@ def main() -> None:
     parser.add_argument(
         "-s",
         "--sort",
-        dest="sort",
         choices=["error", "start", "end", "success", "walltime"],
         help="sort jobs by this value (otherwise, defaults to job id)",
     )
@@ -523,7 +522,6 @@ def main() -> None:
     parser.add_argument(
         "-f",
         "--failed",
-        dest="failed",
         default=False,
         action="store_true",
         help="display only failed jobs",
@@ -543,19 +541,19 @@ def main() -> None:
         help="keywords to search for in .err files",
     )
     parser.add_argument(
-        "-w",
-        "--workers",
-        dest="workers",
-        type=int,
-        default=1,
-        help="workers for multi-processing",
+        "-w", "--workers", type=int, default=1, help="workers for multi-processing",
     )
     parser.add_argument(
         "--no-print-keyword-lines",
-        dest="no_print_keywords_lines",
         default=False,
         action="store_true",
         help="don't print lines containing keywords (useful if there are many matches)",
+    )
+    parser.add_argument(
+        "--success-logs-out",
+        default=None,
+        help="a place to write successes.dag "
+        "(a file containing each successful job's *.log filepath",
     )
     args = parser.parse_args()
 
@@ -569,6 +567,13 @@ def main() -> None:
 
     # Get jobs
     jobs = get_all_jobs(args.path, args.workers, only_failed_ids=args.failed)
+
+    # Write out success jobs
+    if args.success_logs_out:
+        with open(args.success_logs_out, "w") as slogs_f:
+            for job in jobs:
+                if job.exit_status == JobExitStatus.SUCCESS:
+                    print(job.log_filepath, file=slogs_f)
 
     # Summarize
     jobs_to_summarize = jobs
