@@ -352,24 +352,25 @@ def get_all_jobs(
         lookup_jobs = [j for j in lookup_jobs if j.failed()]
 
     logging.debug(f"Pairing cluster ids with jobs ids (max_workers={max_workers})...")
+    progress_bar = progress.bar.Bar("Processing", max=len(files) * 2)
 
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
+        progress_bar.next()
         file_workers.extend(
             pool.submit(_set_job_id, dir_path, f, lookup_jobs) for f in files
         )
 
     # get jobs, now with job_ids
-    progress_bar = progress.bar.Bar("Processing", max=len(file_workers))
     for worker in concurrent.futures.as_completed(file_workers):
         progress_bar.next()
         ret_job = worker.result()
         if not ret_job:
             continue
         job_by_cluster_id[ret_job.cluster_id] = ret_job
-    progress_bar.finish()
 
+    progress_bar.finish()
     logging.info(f"Found {len(job_by_cluster_id)} total jobs")
     return list(job_by_cluster_id.values())
 
