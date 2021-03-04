@@ -352,7 +352,9 @@ def get_all_jobs(
         lookup_jobs = [j for j in lookup_jobs if j.failed()]
 
     logging.debug(f"Pairing cluster ids with jobs ids (max_workers={max_workers})...")
-    progress_bar = progress.bar.Bar("Processing", max=len(files) * 2)
+    progress_bar = progress.bar.Bar(
+        "Processing", max=len(files) * 2, suffix="%(percent)d%%"
+    )
 
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
