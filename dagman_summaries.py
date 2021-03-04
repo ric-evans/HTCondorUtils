@@ -14,6 +14,7 @@ import progress.bar as pg  # type: ignore[import]
 from dateutil.parser import parse as parse_dt
 
 MAX_COLUMNS = 120
+PROG_SUFFIX = "%(index)d/%(max)d | %(percent)d%%"
 
 
 def max_line_len(lines: List[str]) -> int:
@@ -257,7 +258,7 @@ class Job:  # pylint: disable=R0902
 
 
 def _set_job_ids(dir_path: str, log_files: List[str], jobs: List[Job]) -> List[Job]:
-    prog_bar = pg.Bar("Worker", max=len(log_files), suffix="%(percent)d%%")
+    prog_bar = pg.Bar("Worker", max=len(log_files), suffix=PROG_SUFFIX)
     ret_jobs = []
     for log_fname in log_files:
         prog_bar.next()
@@ -360,7 +361,7 @@ def get_all_jobs(
 
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
-    prog_bar = pg.Bar("Dispatching", max=max_workers, suffix="%(percent)d%%")
+    prog_bar = pg.Bar("Dispatching", max=max_workers, suffix=PROG_SUFFIX)
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
         for i in range(max_workers):
             log_files_subset = []
@@ -374,7 +375,7 @@ def get_all_jobs(
     prog_bar.finish()
 
     # get jobs, now with job_ids
-    prog_bar = pg.Bar("Collecting Pairs", max=len(file_workers), suffix="%(percent)d%%")
+    prog_bar = pg.Bar("Collecting Pairs", max=len(file_workers), suffix=PROG_SUFFIX)
     for worker in concurrent.futures.as_completed(file_workers):
         ret_jobs = worker.result()
         if not ret_jobs:
@@ -456,7 +457,7 @@ def get_job_summaries(  # pylint: disable=R0913
 
     # make messages
     workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
-    prog_bar = pg.Bar("Dispatching Workers", max=len(jobs), suffix="%(percent)d%%")
+    prog_bar = pg.Bar("Dispatching Workers", max=len(jobs), suffix=PROG_SUFFIX)
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
         for job in jobs:
             workers.append(
@@ -469,7 +470,7 @@ def get_job_summaries(  # pylint: disable=R0913
 
     # get messages
     job_summaries = []  # type: List[Tuple[Job, str]]
-    prog_bar = pg.Bar("Collecting Summaries", max=len(workers), suffix="%(percent)d%%")
+    prog_bar = pg.Bar("Collecting Summaries", max=len(workers), suffix=PROG_SUFFIX)
     for worker in concurrent.futures.as_completed(workers):
         job, summary = worker.result()
         job_summaries.append((job, summary))
