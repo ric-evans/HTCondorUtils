@@ -14,6 +14,7 @@ import progress.bar  # type: ignore[import]
 from dateutil.parser import parse as parse_dt
 
 MAX_COLUMNS = 120
+SUCCESS_LOGS_OUT_FNAME = "success-dag-logs.paths"
 
 
 class ProgBar(progress.bar.Bar):  # type: ignore[misc]
@@ -352,11 +353,11 @@ def _get_jobs(dir_path: str, only_log_failed: bool) -> List[Job]:
 
 
 def get_all_jobs(
-    dir_path: str, max_workers: int, only_failed_ids: bool = True
+    dir_path: str, max_workers: int, only_failed_jobs: bool = True
 ) -> List[Job]:
     """Return list of successful and failed jobs."""
     job_by_cluster_id = {
-        j.cluster_id: j for j in _get_jobs(dir_path, only_log_failed=only_failed_ids)
+        j.cluster_id: j for j in _get_jobs(dir_path, only_log_failed=only_failed_jobs)
     }
     log_files = [
         fn
@@ -364,7 +365,7 @@ def get_all_jobs(
         if (".log" in fn) and ("dag.nodes.log" not in fn)
     ]
     lookup_jobs = list(job_by_cluster_id.values())
-    if only_failed_ids:
+    if only_failed_jobs:
         lookup_jobs = [j for j in lookup_jobs if j.failed()]
 
     logging.debug(f"Pairing cluster ids with jobs ids (max_workers={max_workers})...")
@@ -592,9 +593,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--success-logs-out",
-        default=None,
-        help="a place to write success-dag-logs.paths "
-        "(a file containing each successful job's *.log filepath",
+        default=False,
+        action="store_true",
+        help=f"write a file containing each successful job's *.log filepath ({SUCCESS_LOGS_OUT_FNAME})",
     )
     args = parser.parse_args()
 
@@ -607,17 +608,20 @@ def main() -> None:
     # fmt:on
 
     # Get jobs
-    jobs = get_all_jobs(args.path, args.workers, only_failed_ids=args.failed)
+    get_only_failed_jobs = args.failed
+    if args.success_logs_out:
+        get_only_failed_jobs = False
+    jobs = get_all_jobs(args.path, args.workers, only_failed_jobs=get_only_failed_jobs)
 
     # Write out success jobs
     if args.success_logs_out:
-        fname = os.path.join(args.success_logs_out, "success-dag-logs.paths")
-        logging.info(f"Writing each successful job's *.log filepath to {fname}")
-        with open(fname, "w") as slogs_f:
+        logging.info(
+            f"Writing each successful job's *.log filepath to {SUCCESS_LOGS_OUT_FNAME}"
+        )
+        with open(SUCCESS_LOGS_OUT_FNAME, "w") as slogs_f:
             for job in jobs:
                 if job.exit_status == JobExitStatus.SUCCESS:
                     print(job.log_filepath, file=slogs_f)
-        return
 
     # Summarize
     jobs_to_summarize = jobs
