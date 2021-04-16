@@ -144,9 +144,9 @@ class Job:  # pylint: disable=R0902
         with open(self.log_filepath, "r") as file:
             for line in file:
                 if self.cluster_id in line:  # skip times from past runs
-                    if (not start) and ("Job executing on host" in line):  # type: ignore[unreachable]
+                    if (not start) and ("Job executing on host" in line):
                         start = get_datetime(line)
-                    elif (not end) and (  # type: ignore[unreachable]
+                    elif (not end) and (
                         ("Job terminated" in line) or ("Job was held" in line)
                     ):
                         end = get_datetime(line)
@@ -268,11 +268,19 @@ class Job:  # pylint: disable=R0902
         return summary
 
 
-def _set_job_ids(dir_path: str, log_files: List[str], jobs: List[Job]) -> List[Job]:
-    prog_bar = ProgBar("Worker", max=len(log_files))
+def _set_job_ids(
+    dir_path: str,
+    log_files: List[str],
+    jobs: List[Job],
+    show_progress_bar: bool = False,
+) -> List[Job]:
+    if show_progress_bar:
+        prog_bar = ProgBar("Worker", max=len(log_files))
+
     ret_jobs = []
     for log_fname in log_files:
-        prog_bar.next()
+        if show_progress_bar:
+            prog_bar.next()
         with open(os.path.join(dir_path, log_fname), "r") as file:
             for line in file:
                 for job in jobs:
@@ -280,7 +288,9 @@ def _set_job_ids(dir_path: str, log_files: List[str], jobs: List[Job]) -> List[J
                         # filename w/o extension, 5023.log
                         job.job_id = log_fname.split(".")[0]
                         ret_jobs.append(job)
-    prog_bar.finish()
+
+    if show_progress_bar:
+        prog_bar.finish()
     return ret_jobs
 
 
@@ -380,7 +390,13 @@ def get_all_jobs(
                 if k % max_workers == i:
                     log_files_subset.append(log)
             file_workers.append(
-                pool.submit(_set_job_ids, dir_path, log_files_subset, lookup_jobs)
+                pool.submit(
+                    _set_job_ids,
+                    dir_path,
+                    log_files_subset,
+                    lookup_jobs,
+                    show_progress_bar=(i == 0),
+                )
             )
             prog_bar.next()
     prog_bar.finish()
