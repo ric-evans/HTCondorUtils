@@ -7,7 +7,7 @@ import os
 import re
 import typing
 from datetime import datetime
-from enum import auto, Enum
+from enum import Enum, auto
 from typing import Dict, List, Optional, Set, Tuple
 
 import progress.bar  # type: ignore[import]
@@ -414,7 +414,9 @@ def _arrange_job_summaries(
 ) -> List[Tuple[Job, str]]:
 
     try:
-        from natsort import natsorted as sort_func  # type: ignore # pylint: disable=C0415
+        from natsort import (
+            natsorted as sort_func,  # type: ignore # pylint: disable=C0415
+        )
     except ModuleNotFoundError:
         logging.warning(
             ">> pip install natsort to sort jobs naturally, instead of lexicographically{ENDC}\n"
@@ -634,7 +636,7 @@ def main() -> None:
         sort_by_value=args.sort,
         reverse=args.reverse_sort,
         verbose=args.verbose,
-        print_keyword_matches=not args.no_print_keywords_lines,
+        print_keyword_matches=not args.no_print_keyword_lines,
     )
     for summary in summaries:
         print(summary, end="\n" if args.verbose else "")
