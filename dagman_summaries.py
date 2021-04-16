@@ -373,7 +373,7 @@ def get_all_jobs(
     # search every <job_id>.log files for cluster ids, so to set job ids
     file_workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     prog_bar = ProgBar("Dispatching", max=max_workers)
-    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         for i in range(max_workers):
             log_files_subset = []
             for k, log in enumerate(log_files):
@@ -414,9 +414,8 @@ def _arrange_job_summaries(
 ) -> List[Tuple[Job, str]]:
 
     try:
-        from natsort import (
-            natsorted as sort_func,  # type: ignore # pylint: disable=C0415
-        )
+        # pylint: disable=C0415
+        from natsort import natsorted as sort_func  # type: ignore
     except ModuleNotFoundError:
         logging.warning(
             ">> pip install natsort to sort jobs naturally, instead of lexicographically{ENDC}\n"
@@ -471,7 +470,7 @@ def get_job_summaries(  # pylint: disable=R0913
     # make messages
     workers: List[concurrent.futures.Future] = []  # type: ignore[type-arg]
     prog_bar = ProgBar("Dispatching Workers", max=len(jobs))
-    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         for job in jobs:
             workers.append(
                 pool.submit(
@@ -585,7 +584,7 @@ def main() -> None:
         help="keywords to search for in .err files",
     )
     parser.add_argument(
-        "-w", "--workers", type=int, default=1, help="workers for multi-processing",
+        "-w", "--workers", type=int, default=1, help="workers for multi-threading",
     )
     parser.add_argument(
         "--no-print-keyword-lines",
