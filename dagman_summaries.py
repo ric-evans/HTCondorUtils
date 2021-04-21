@@ -536,8 +536,8 @@ def stats(jobs: List[Job]) -> str:
             if j.exit_status != JobExitStatus.SUCCESS_BEFORE_RESCUE
         ]
         this_run_successes = (
-            f"(from recent run: {div(this_run_success_jobs,jobs)} "
-            f"{percentange(this_run_success_jobs,jobs)})\n"
+            f"-from recent run: {div(this_run_success_jobs,jobs)} "
+            f"{percentange(this_run_success_jobs,jobs)}\n"
         )
         success_before_rescue_jobs = [
             j
@@ -545,8 +545,8 @@ def stats(jobs: List[Job]) -> str:
             if j.exit_status == JobExitStatus.SUCCESS_BEFORE_RESCUE
         ]
         success_before_rescue = (
-            f"(from rescue(s):  {div(success_before_rescue_jobs,jobs)} "
-            f"{percentange(success_before_rescue_jobs,jobs)})\n"
+            f"-from rescue(s):  {div(success_before_rescue_jobs,jobs)} "
+            f"{percentange(success_before_rescue_jobs,jobs)}\n"
         )
 
     held = ""
