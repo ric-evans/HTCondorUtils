@@ -512,9 +512,6 @@ def stats(jobs: List[Job]) -> str:
     """Get stats."""
     logging.debug("Getting aggregated stats...")
 
-    successful_jobs = [j for j in jobs if not j.failed()]
-    failed_jobs = [j for j in jobs if j.failed()]
-
     def percentange(numerator_list: List[Job], denominator_list: List[Job]) -> str:
         return f"{(len(numerator_list)/len(denominator_list))*100:5.2f}%"
 
@@ -523,25 +520,50 @@ def stats(jobs: List[Job]) -> str:
         return f"{len(numerator_list):{prec}.0f}/{len(denominator_list)}"
 
     # Successful Jobs
+    successful_jobs = [j for j in jobs if not j.failed()]
     success = (
-        f"Successful Jobs: {div(successful_jobs,jobs)} "
+        f"Successful Jobs:  {div(successful_jobs,jobs)} "
         f"{percentange(successful_jobs,jobs)}\n"
     )
+
+    # Success Before Rescue Jobs
+    this_run_successes = ""
+    success_before_rescue = ""
+    if any(j.exit_status == JobExitStatus.SUCCESS_BEFORE_RESCUE for j in jobs):
+        this_run_success_jobs = [
+            j
+            for j in successful_jobs
+            if j.exit_status != JobExitStatus.SUCCESS_BEFORE_RESCUE
+        ]
+        this_run_successes = (
+            f"(from recent run: {div(this_run_success_jobs,jobs)} "
+            f"{percentange(this_run_success_jobs,jobs)})\n"
+        )
+        success_before_rescue_jobs = [
+            j
+            for j in successful_jobs
+            if j.exit_status == JobExitStatus.SUCCESS_BEFORE_RESCUE
+        ]
+        success_before_rescue = (
+            f"(from rescue(s):  {div(success_before_rescue_jobs,jobs)} "
+            f"{percentange(success_before_rescue_jobs,jobs)})\n"
+        )
 
     held = ""
     non_zero = ""
     dashes = ""
     total_failed = ""
+    failed_jobs = [j for j in jobs if j.failed()]
     # Failed Jobs
     if failed_jobs:
         # Held Jobs
         helds = [j for j in failed_jobs if j.exit_status == JobExitStatus.HELD]
-        held = f"Held Jobs:       {div(helds,jobs)} " f"{percentange(helds,jobs)}\n"
+        held = f"Held Jobs:        {div(helds,jobs)} " f"{percentange(helds,jobs)}\n"
 
         # Non-Zero Jobs
         non_zeros = [j for j in failed_jobs if j.exit_status == JobExitStatus.NON_ZERO]
         non_zero = (
-            f"Non-Zero Jobs:   {div(non_zeros,jobs)} "
+            f"Non-Zero Jobs:    {div(non_zeros,jobs)} "
             f"{percentange(non_zeros,jobs)}\n"
         )
 
@@ -549,13 +571,13 @@ def stats(jobs: List[Job]) -> str:
 
         # Total Failed
         total_failed = (
-            f"Total Failed:    {div(failed_jobs,jobs)} "
+            f"Total Failed:     {div(failed_jobs,jobs)} "
             f"{percentange(failed_jobs,jobs)}\n"
         )
 
-    equals = f"{'=' * max_line_len([success, held, non_zero, total_failed])}\n"
+    equals = f"{'=' * max_line_len([success, this_run_successes, success_before_rescue, held, non_zero, total_failed])}\n"
 
-    return f"{success}{equals}{held}{non_zero}{dashes}{total_failed}"
+    return f"{success}{this_run_successes}{success_before_rescue}{equals}{held}{non_zero}{dashes}{total_failed}"
 
 
 def main() -> None:
