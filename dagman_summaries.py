@@ -263,9 +263,7 @@ class Job:  # pylint: disable=R0902
             f"{nln_it(wall_time)}"
         )
 
-        if verbose > 1:
-            return nln_it(summary)
-        return summary
+        return nln_it(summary)
 
 
 def _set_job_ids(
