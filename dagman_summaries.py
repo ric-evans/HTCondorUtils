@@ -14,7 +14,6 @@ import progress.bar  # type: ignore[import]
 from dateutil.parser import parse as parse_dt
 
 MAX_COLUMNS = 120
-SUCCESS_LOGS_OUT_FNAME = "success-dag-logs.paths"
 
 
 class ProgBar(progress.bar.Bar):  # type: ignore[misc]
@@ -589,7 +588,7 @@ def main() -> None:
         dest="verbose",
         default=0,
         action="count",
-        help="display more information",
+        help="display more information (increase num. of v's for more info)",
     )
     parser.add_argument(
         "-k",
@@ -608,10 +607,9 @@ def main() -> None:
         help="don't print lines containing keywords (useful if there are many matches)",
     )
     parser.add_argument(
-        "--success-logs-out",
-        default=False,
-        action="store_true",
-        help=f"write a file containing each successful job's *.log filepath ({SUCCESS_LOGS_OUT_FNAME})",
+        "--success-logs-outfile",
+        default="",
+        help="a file to write to containing each successful job's *.log filepath",
     )
     args = parser.parse_args()
 
@@ -625,16 +623,16 @@ def main() -> None:
 
     # Get jobs
     get_only_failed_jobs = args.failed
-    if args.success_logs_out:
+    if args.success_logs_outfile:
         get_only_failed_jobs = False
     jobs = get_all_jobs(args.path, args.workers, only_failed_jobs=get_only_failed_jobs)
 
     # Write out success jobs
-    if args.success_logs_out:
+    if args.success_logs_outfile:
         logging.info(
-            f"Writing each successful job's *.log filepath to {SUCCESS_LOGS_OUT_FNAME}"
+            f"Writing each successful job's *.log filepath to {args.success_logs_outfile}"
         )
-        with open(SUCCESS_LOGS_OUT_FNAME, "w") as slogs_f:
+        with open(args.success_logs_outfile, "w") as slogs_f:
             for job in jobs:
                 if job.exit_status == JobExitStatus.SUCCESS:
                     print(job.log_filepath, file=slogs_f)
