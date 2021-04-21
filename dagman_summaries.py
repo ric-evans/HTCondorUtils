@@ -244,6 +244,7 @@ class Job:  # pylint: disable=R0902
         nln = "\n"  # '\n' isn't allowed in f-string expression parts
 
         def nln_it(string: str) -> str:
+            string = string.strip()
             if not string:
                 return ""
             return string + "\n"
